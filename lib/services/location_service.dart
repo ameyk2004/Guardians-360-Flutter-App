@@ -11,9 +11,6 @@ class LocationService {
   static Timer? _locationTimer;
   final int userID;
 
-  // ✅ Corrected Notifiers
-  ValueNotifier<bool> travelModeNotifier = ValueNotifier(false);
-
   LocationService({required this.userID});
 
   Future<Map<String, double?>> getCurrentLocation() async {
@@ -48,7 +45,7 @@ class LocationService {
       Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
-      await sendLocationToFriend(position);
+      await _sendLocationToFriend(position);
     });
   }
 
@@ -57,24 +54,24 @@ class LocationService {
     print("Tracking stopped.");
   }
 
-  Future<void> sendLocationToFriend(Position position) async {
+  Future<void> _sendLocationToFriend(Position position) async {
     try {
-      final url = Uri.parse('${DevConfig().travelAlertServiceBaseUrl}location/$userID');
+      final url = Uri.parse('${DevConfig().travelAlertServiceBaseUrl}location/$userID'); // Replace with actual URL
 
-      final headers = {'Content-Type': 'application/json'};
+      final headers = {
+        'Content-Type': 'application/json',
+      };
 
-      if (travel_mode) {
+      if(travel_mode){
         double distance = Geolocator.distanceBetween(
-          position.latitude,
-          position.longitude,
-          travel_details["location_details"]['destination']?['latitude'] ?? 0.0,
-          travel_details["location_details"]['destination']?['longitude'] ?? 0.0,
+            position.latitude,
+            position.longitude,
+            travel_details["location_details"]['destination']['latitude'],
+            travel_details["location_details"]['destination']['longitude']
         );
 
-        print("\nDistance: $distance");
-
-        // ✅ Correct way to update ValueNotifier
-        travel_details['distance_to_destination'] = distance; // Update field
+        print("\ndistance : $distance");
+        travel_details['distance_to_destination'] = distance;
       }
 
       var body = json.encode({
@@ -84,13 +81,15 @@ class LocationService {
         if (travel_mode) "travel_details": travel_details,
       });
 
-      print(body);
-
+      // print("Sending location: $body");
       final response = await http.post(url, headers: headers, body: body);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        travelModeNotifier.value = data['travel_mode']; // ✅ This will notify UI
+        travel_mode = data['travel_mode'];
+        print(travel_mode);
+
+
       } else {
         print("Failed to send location: ${response.statusCode}");
       }
@@ -99,3 +98,22 @@ class LocationService {
     }
   }
 }
+
+// Map<String, dynamic> travel_details = {
+//   "location_details": {
+//     "source": {
+//       "latitude": 0,
+//       "longitude": 0
+//     },
+//     "destination": {
+//       "latitude": 0,
+//       "longitude": 0
+//     },
+//     "notification_frequency": 0
+//   },
+//   "vehicle_details": {
+//     "mode_of_travel": "",
+//     "vehicle_number": ""
+//   }
+// };
+//

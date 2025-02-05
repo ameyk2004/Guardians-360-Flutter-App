@@ -51,7 +51,6 @@ class _AcceptPendingRequestPageState extends State<AcceptPendingRequestPage> {
 
       print('User ID: $userID');
 
-      print('User ID: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         if (response.body.isNotEmpty) {
@@ -59,6 +58,8 @@ class _AcceptPendingRequestPageState extends State<AcceptPendingRequestPage> {
 
           // Safely handle the 'pending_requests' field
           _pendingRequests = responseBody['pending_requests'] ?? [];
+
+          print(_pendingRequests);
           setState(() {});
         } else {
           _pendingRequests = [];
@@ -252,6 +253,7 @@ class _AcceptPendingRequestPageState extends State<AcceptPendingRequestPage> {
                             ),
                             InkWell(
                               onTap: (){
+                                print([user["userID"]]);
                                 acceptRequest([user["userID"]]);
                               },
                               child: Image.asset(

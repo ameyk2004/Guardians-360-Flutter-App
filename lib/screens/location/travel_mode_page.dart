@@ -10,6 +10,7 @@ import 'dart:convert';
 
 import '../../config/base_config.dart';
 import '../../config/travel_alert_service.dart';
+import '../../services/location_service.dart';
 import '../../utils/asset_suppliers/contacts_page_assets.dart';
 import '../../utils/asset_suppliers/location_page_assets.dart';
 import '../../utils/asset_suppliers/onboarding_page_assets.dart';
@@ -36,6 +37,8 @@ class _TravelModePageState extends State<TravelModePage> {
   String estimatedTime = "";
   int estimatedTimeInMinutes = 0;
   int notificationFrequency = 0;
+
+  Map<String, double?> currentlocationData = {};
 
 
   bool viewDestination = false;
@@ -244,6 +247,12 @@ class _TravelModePageState extends State<TravelModePage> {
             ),
           );
         }
+
+        LocationService locationService = LocationService(userID: widget.userID);
+
+        currentlocationData = await locationService.getCurrentLocation();;
+
+        print(currentlocationData);
 
         setState(() {
           // Updates the state only once after all changes
@@ -501,10 +510,7 @@ class _TravelModePageState extends State<TravelModePage> {
     });
   }
 
-  Future sendSosSmsToFriends() async {
 
-
-  }
   @override
   void initState() {
     getPlaces();
@@ -616,8 +622,9 @@ class _TravelModePageState extends State<TravelModePage> {
                 visible: viewSource,
                 child: InkWell(
                   onTap: (){
-                    print("Currently Not Implimented");
-                    print("I am Tired");
+
+                    print("Current : ");
+
                     viewSource = false;
                     setState(() {
 

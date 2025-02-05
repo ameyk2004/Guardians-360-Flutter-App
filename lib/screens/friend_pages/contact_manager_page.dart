@@ -55,6 +55,7 @@ class _ContactRequestManagerPageState extends State<ContactRequestManagerPage> {
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
         selectedItemColor: AppColors.orange,
+        unselectedItemColor: AppColors.offWhite,
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
             icon: Icon(Icons.person_add_alt_1),

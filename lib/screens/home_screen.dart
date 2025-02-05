@@ -52,6 +52,39 @@ class _HomeScreenState extends State<HomeScreen>
 
   String publicKey = "";
 
+  int notif_number = 0;
+
+  Future<void> getNotifications() async {
+    String type = "all";
+    final url = Uri.parse("${DevConfig().notificationServiceBaseUrl}/api/${userData['userID']}/notifications/inapp?type=$type");
+
+    print("${DevConfig().notificationServiceBaseUrl}/api/${userData['userID']}/notifications/inapp?type=$type");
+
+    final headers = {"Content-Type": "application/json"};
+
+    try {
+      final response = await http.get(url, headers: headers);
+
+      if (response.statusCode == 200) {
+        print("Request successful: ${response.body}");
+
+        final data = jsonDecode(response.body);
+        List _notifications = data['notifications'];
+
+        notif_number = _notifications.length;
+
+        setState(() {
+
+        });
+
+      } else {
+        print("Request failed with status: ${response.statusCode}");
+      }
+    } catch (e) {
+      print("Error sending request: $e");
+    }
+  }
+
   Future<void> _getCurrentLocation() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) return;
@@ -117,6 +150,8 @@ class _HomeScreenState extends State<HomeScreen>
     print(userBattery);
 
     // print(publicKey);
+    print("Getting Notifs");
+    getNotifications();
     setState(() {
       _isLoading = false; // Data is loaded, set loading state to false
     });
@@ -285,12 +320,12 @@ class _HomeScreenState extends State<HomeScreen>
                 IconButton(
                   onPressed: () {
                     Navigator.of(context).push(MaterialPageRoute(
-                        builder: (context) => NotificationScreen()));
+                        builder: (context) => NotificationScreen(userID : int.parse(userData['userID']))));
                   },
-                  icon: notif_no != 0
+                  icon: notif_number != 0
                       ? badges.Badge(
                           badgeContent: Text(
-                            '${notif_no}', // Change this to your notification count
+                            '${notif_number}', // Change this to your notification count
                             style: TextStyle(color: Colors.white, fontSize: 12),
                           ),
                           badgeStyle: badges.BadgeStyle(
@@ -299,7 +334,7 @@ class _HomeScreenState extends State<HomeScreen>
                             elevation: 4, // Gives a slight shadow effect
                           ),
                           position:
-                              badges.BadgePosition.topEnd(top: -3, end: -3),
+                              badges.BadgePosition.topEnd(top:  -6, end: -3),
                           child: Icon(
                             Icons.notifications,
                             color: Colors.white,

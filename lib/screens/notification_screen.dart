@@ -1,119 +1,145 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:guardians_app/config/base_config.dart';
 import 'package:guardians_app/utils/text_styles.dart';
+import 'package:http/http.dart' as http;
 
 import '../utils/colors.dart';
 
 class NotificationScreen extends StatefulWidget {
+  final int userID;
+
+  const NotificationScreen({super.key, required this.userID});
   @override
   _NotificationScreenState createState() => _NotificationScreenState();
 }
 
 class _NotificationScreenState extends State<NotificationScreen> {
-  final List _notifications = [
-  {
-  "notification_id": 1,
-  "notifier_id": 101,
-  "notification_type_id": 1,
-  "notification_type": "SOS",
-  "message": "Emergency! Immediate help needed!",
-  "is_read": false,
-  "created_at" : 9 ,
-  "notifier": {"name": "Tirthraj Mahajan", "phone": "78899799979"}
-},
-    {
-      "notification_id": 1,
-      "notifier_id": 101,
-      "notification_type_id": 1,
-      "notification_type": "Travel Alert",
-      "message": "Emergency! Immediate help needed!",
-      "is_read": false,
-      "created_at" : 9 ,
-      "notifier": {"name": "Tirthraj Mahajan", "phone": "78899799979"}
-    },
-    {
-      "notification_id": 1,
-      "notifier_id": 101,
-      "notification_type_id": 1,
-      "notification_type": "Adaptive Alert",
-      "message": "Emergency! Immediate help needed!",
-      "is_read": false,
-      "created_at" : 9 ,
-      "notifier": {"name": "Tirthraj Mahajan", "phone": "78899799979"}
-    },
-    {
-      "notification_id": 1,
-      "notifier_id": 101,
-      "notification_type_id": 1,
-      "notification_type": "General",
-      "message": "Emergency! Immediate help needed!",
-      "is_read": false,
-      "created_at" : 9 ,
-      "notifier": {"name": "Tirthraj Mahajan", "phone": "78899799979"}
-    },
-  ];
+   List _notifications = [];
+
+   @override
+  void initState() {
+    getNotifications();
+    super.initState();
+  }
 
   String _selectedFilter = "All";
   final List<String> _filters = ["All", "SOS", "Travel Alert", "Adaptive Alert", "General"];
 
-  List _getFilteredNotifications() {
-    if (_selectedFilter == "All") {
-      return _notifications;
+  Future<void> getNotifications() async {
+    String type = "all";
+    if(_selectedFilter == "All"){
+      type="all";
     }
-    return _notifications.where((n) => n["notification_type"] == _selectedFilter).toList();
+    else if(_selectedFilter == "SOS"){
+      type="sos";
+    }
+    else if(_selectedFilter == "Travel Alert"){
+      type="travel_alert";
+    }
+    else if(_selectedFilter == "Adaptive Alert"){
+      type="adaptive_location_alert";
+    }
+    else if(_selectedFilter == "General"){
+      type="generic";
+    }
+
+    final url = Uri.parse("${DevConfig().notificationServiceBaseUrl}/api/${widget.userID}/notifications/inapp?type=$type");
+
+    print("${DevConfig().notificationServiceBaseUrl}/api/${widget.userID}/notifications/inapp?type=$type");
+
+    final headers = {"Content-Type": "application/json"};
+
+    try {
+      final response = await http.get(url, headers: headers);
+
+      if (response.statusCode == 200) {
+        print("Request successful: ${response.body}");
+
+        final data = jsonDecode(response.body);
+        _notifications = data['notifications'];
+        _notifications = _notifications.reversed.toList();
+
+        setState(() {
+
+        });
+
+      } else {
+        print("Request failed with status: ${response.statusCode}");
+      }
+    } catch (e) {
+      print("Error sending request: $e");
+    }
   }
 
-  Widget _buildFilterChips() {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: 16),
-        child: Row(
-          children: _filters.map((filter) {
-            return Padding(
-              padding: EdgeInsets.symmetric(horizontal: 4.0),
-              child: ChoiceChip(
-                label: Text(filter, style: TextStyle(color: Colors.white)),
-                selected: _selectedFilter == filter,
-                onSelected: (selected) {
-                  setState(() {
-                    _selectedFilter = filter;
-                  });
-                },
-                selectedColor: Colors.blueAccent,
-                backgroundColor: Colors.grey.shade800,
-              ),
-            );
-          }).toList(),
-        ),
-      ),
-    );
-  }
+   Widget _buildFilterChips() {
+     return SingleChildScrollView(
+       scrollDirection: Axis.horizontal,
+       child: Padding(
+         padding: EdgeInsets.symmetric(horizontal: 16),
+         child: Row(
+           children: _filters.map((filter) {
+             bool isSelected = _selectedFilter == filter;
+             return Padding(
+               padding: EdgeInsets.symmetric(horizontal: 4.0),
+               child: InkWell(
+                 onTap: () {
+                   setState(() {
+                     _selectedFilter = filter;
+                   });
 
-  Widget _buildNotificationContainer(Map<String, dynamic> notification) {
-    switch (notification["notification_type"]) {
-      case "SOS":
+                   getNotifications();
+                 },
+                 borderRadius: BorderRadius.circular(20), // Ripple effect shape
+                 child: Container(
+                   padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                   decoration: BoxDecoration(
+                     color: isSelected ? Colors.blueAccent : Colors.grey.shade800,
+                     borderRadius: BorderRadius.circular(20),
+                   ),
+                   child: Text(
+                     filter,
+                     style: TextStyle(
+                       color: Colors.white,
+                       fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                     ),
+                   ),
+                 ),
+               ),
+             );
+           }).toList(),
+         ),
+       ),
+     );
+   }
+
+
+   Widget _buildNotificationContainer(Map<String, dynamic> notification) {
+    switch (notification["notification_type_id"]) {
+      case 0:
         return SOSNotification(
           message: notification["message"],
-          sender: notification["notifier"]["name"],
-          phone: notification["notifier"]["phone"],
+          sender: "${notification['notifier_id']}",
+          phone: 'sample',
         );
-      case "Travel Alert":
+      case 2:
         return TravelAlertNotification(
           message: notification["message"],
-          sender: notification["notifier"]["name"],
-          phone: notification["notifier"]["phone"],
+          sender: "${notification['notifier_id']}",
+          phone: 'sample',
         );
-      case "Adaptive Alert":
+      case 1:
         return AdaptiveAlertNotification(
           message: notification["message"],
-          sender: notification["notifier"]["name"],
-          phone: notification["notifier"]["phone"],
+          sender: "${notification['notifier_id']}",
+          phone: 'sample',
         );
-      case "General":
+      case 3:
         return GeneralNotification(
           message: notification["message"],
-          sender: notification["notifier"]["name"],
-          phone: notification["notifier"]["phone"],
+          sender: "${notification['notifier_id']}",
+          phone: 'sample',
         );
       default:
         return SizedBox.shrink();
@@ -128,6 +154,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
         title: Text("Notifications", style: AppTextStyles.bold),
         centerTitle: false,
         backgroundColor: Colors.transparent,
+        
+        leading: IconButton(onPressed: () { Navigator.of(context).pop(); }, icon: Icon(Icons.arrow_back, color: AppColors.offWhite,), ),
       ),
       body: Column(
         children: [
@@ -138,9 +166,9 @@ class _NotificationScreenState extends State<NotificationScreen> {
             child: Padding(
               padding: EdgeInsets.symmetric(horizontal: 5),
                 child: ListView.builder(
-                  itemCount: _getFilteredNotifications().length,
+                  itemCount: _notifications.length,
                   itemBuilder: (context, index) {
-                    return _buildNotificationContainer(_getFilteredNotifications()[index]);
+                    return _buildNotificationContainer(_notifications[index]);
                   },
                 ),
             ),
@@ -178,7 +206,7 @@ class NotificationContainer extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Image.network(imagePath, width: 50, height: 50),
+          Image.asset(imagePath, width: 50, height: 50),
           SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -221,7 +249,7 @@ class SOSNotification extends StatelessWidget {
       sender: sender,
       phone: phone,
       color: Colors.red.shade700,
-      imagePath: 'https://cdn-icons-png.flaticon.com/512/2858/2858029.png',
+      imagePath: 'assets/images/sos_notification.png',
     );
   }
 }
@@ -243,9 +271,9 @@ class TravelAlertNotification extends StatelessWidget {
       message: message,
       sender: sender,
       phone: phone,
-      color: Colors.orange.shade600,
+      color: Color(0xFF5D8736),
       imagePath:
-          'https://static.vecteezy.com/system/resources/previews/015/153/901/non_2x/car-travel-icon-color-outline-vector.jpg',
+          'assets/images/travel_notification.jpg',
     );
   }
 }
@@ -269,7 +297,7 @@ class AdaptiveAlertNotification extends StatelessWidget {
       phone: phone,
       color: Colors.cyan.shade600,
       imagePath:
-          'https://static.vecteezy.com/system/resources/previews/031/606/756/non_2x/color-icon-for-regions-vector.jpg',
+          'assets/images/adaptive_notification.jpg',
     );
   }
 }
@@ -293,7 +321,7 @@ class GeneralNotification extends StatelessWidget {
       phone: phone,
       color: Colors.blue.shade400,
       imagePath:
-          'https://cdn-icons-png.freepik.com/256/3602/3602175.png?semt=ais_hybrid',
+          'assets/images/general_notificatiom.png',
     );
   }
 }

@@ -59,7 +59,7 @@ class _MainPageState extends State<MainPage> {
           currentIndex: _selectedIndex,
           onTap: _onItemTapped,
           selectedItemColor: AppColors.orange,
-          unselectedItemColor: Colors.black54,
+          unselectedItemColor: AppColors.offWhite,
           items: const <BottomNavigationBarItem>[
             BottomNavigationBarItem(
               icon: Icon(Icons.home),
