@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_background_service/flutter_background_service.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:guardians_app/config/travel_alert_service.dart';
 import 'package:guardians_app/screens/home_screen.dart';
 import 'package:guardians_app/screens/incident_reporting/incident_reporting.dart';
@@ -32,11 +34,26 @@ class _MainPageState extends State<MainPage> {
       TravelModePage(userID: widget.userID), // Travel placeholder
     ];
 
-    LocationService(userID: widget.userID).startTracking(context);
+    // Start background service
+    final service = FlutterBackgroundService();
+    service.startService();
+    service.invoke('setAsForeground');
+    service.invoke('setAsBackground');
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       InternetConnectivityInApp().listenToConnectivity(context);
     });
+  }
+
+  Future<bool> _requestPermission(LocationService locationService) async {
+    LocationPermission permission = await Geolocator.requestPermission();
+    if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+      print("Permission denied");
+      return false;
+    }
+
+    // If permission is granted, you can now use the location service
+    return true;
   }
 
   void _onItemTapped(int index) {

@@ -34,7 +34,10 @@
         <meta-data android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyAVv-fXnoWeN6LG3c7RqAXykXtIUq4scnE"/>
 
-
+        <service
+            android:name="id.flutter.flutter_background_service.BackgroundService"
+            android:foregroundServiceType="location"
+            />
 
         <uses-library android:name="org.apache.http.legacy" android:required="false"/>
 

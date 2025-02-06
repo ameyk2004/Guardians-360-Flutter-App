@@ -7,6 +7,7 @@ import 'package:guardians_app/providers/location_provider.dart';
 import 'package:guardians_app/screens/adhar_upload_page.dart';
 import 'package:guardians_app/screens/friend_pages/contact_page.dart';
 import 'package:guardians_app/screens/home_screen.dart';
+import 'package:guardians_app/services/backround_tasks.dart';
 import 'package:guardians_app/services/device_token_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -19,6 +20,15 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await FirebaseMessagingHelper().initNotifications();
+
+  await Permission.notification.isDenied.then((value){
+    if (value){
+      Permission.notification.request();
+    }
+
+  });
+
+  await initializeService();
 
   runApp(
       MultiProvider(
