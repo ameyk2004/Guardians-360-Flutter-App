@@ -94,7 +94,6 @@ class LocationService {
 
         Provider.of<LocationProvider>(context, listen: false).updateTravelMode(data['travel_mode']);
 
-
       } else {
         print("Failed to send location: ${response.statusCode}");
       }
