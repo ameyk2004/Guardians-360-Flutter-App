@@ -4,18 +4,20 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
-import 'package:guardians_app/utils/global_variable.dart';
 import 'package:http/http.dart' as http;
+import 'package:provider/provider.dart';
 import 'dart:convert';
-
 import '../../config/base_config.dart';
 import '../../config/travel_alert_service.dart';
+import '../../providers/location_provider.dart';
 import '../../services/location_service.dart';
 import '../../utils/asset_suppliers/contacts_page_assets.dart';
 import '../../utils/asset_suppliers/location_page_assets.dart';
 import '../../utils/asset_suppliers/onboarding_page_assets.dart';
 import '../../utils/colors.dart';
 import '../../utils/text_styles.dart';
+
+import 'package:guardians_app/utils/global_variable.dart';
 
 class TravelModePage extends StatefulWidget {
   final int userID;
@@ -75,7 +77,7 @@ class _TravelModePageState extends State<TravelModePage> {
   }
 
   // Function to fetch route and estimated time
-  Future<void> getRoute(sourceLatLng, destinationLatLng) async {
+  Future<void> getRoute(sourceLatLng, destinationLatLng, locationProvider) async {
     if (sourceLatLng == null || destinationLatLng == null) {
       print("Invalid source or destination");
       return;
@@ -125,7 +127,7 @@ class _TravelModePageState extends State<TravelModePage> {
         // Adjust camera to fit the polyline route
         _adjustCameraToRoute();
 
-        turnOnTravelMode();
+        turnOnTravelMode(locationProvider);
 
         setState(() {});
       }
@@ -341,7 +343,9 @@ class _TravelModePageState extends State<TravelModePage> {
     }
   }
 
-  void turnOnTravelMode(){
+  void turnOnTravelMode(locationProvider){
+
+    print("Turning on Travel Mode . . . . . . . ");
 
     Map<String, dynamic> set_travel_details = {
       "location_details": {
@@ -362,7 +366,8 @@ class _TravelModePageState extends State<TravelModePage> {
     };
 
     travel_details = set_travel_details;
-    travel_mode = true;
+    // travel_mode = true;
+    locationProvider.updateTravelMode(!locationProvider.travelMode);
 
     showDialog(
       context: context,
@@ -484,27 +489,49 @@ class _TravelModePageState extends State<TravelModePage> {
       }
       _markers.clear();
       _markers.add(Marker(
-        markerId: MarkerId(placeName),
-        position: latLng,
-        infoWindow: InfoWindow(title: placeName),
-      ));
-    });
+  markerId: MarkerId(placeName),
+  position: latLng,
+  infoWindow: InfoWindow(title: placeName),
+  ));
+});
 
-    if (location == "source") {
-      _mapController.animateCamera(
-        CameraUpdate.newLatLng(_selectedSourceLocation),
-      );
+if (location == "source") {
+_mapController.animateCamera(
+CameraUpdate.newLatLng(_selectedSourceLocation),
+);
+} else {
+_mapController.animateCamera(
+CameraUpdate.newLatLng(_selectedDestinationLocation),
+);
+}
+}
+
+
+
+  Future<void> turnOffTravelMode(locationProvider) async {
+
+    final response = await http.get(
+      Uri.parse("${DevConfig().travelAlertServiceBaseUrl}location/travel-mode-off/${widget.userID}"),
+      headers: {
+        "Content-Type": "application/json",  // Set the content type to application/json
+      },
+    );
+
+    print(response.body);
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+
+      print(data);
+
+      setState(() {
+      });
     } else {
-      _mapController.animateCamera(
-        CameraUpdate.newLatLng(_selectedDestinationLocation),
-      );
+      throw Exception('Failed to Turn of Travel Mode');
     }
-  }
 
 
-
-  void turnOffTravelMode(){
-    travel_mode = false;
+    locationProvider.updateTravelMode(!locationProvider.travelMode);
     setState(() {
 
     });
@@ -519,117 +546,452 @@ class _TravelModePageState extends State<TravelModePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.darkBlue,
-      resizeToAvoidBottomInset: true,
-      appBar: AppBar(
-        leading: SizedBox.shrink(),
-        title: Text(
-          "Travel Mode Details",
-          style: AppTextStyles.title.copyWith(color: AppColors.orange),
+    return Consumer<LocationProvider>(
+        builder: (context, locationProvider, child)
+    {
+      return Scaffold(
+        backgroundColor: AppColors.darkBlue,
+        resizeToAvoidBottomInset: true,
+        appBar: AppBar(
+          leading: SizedBox.shrink(),
+          title: Text(
+            "Travel Mode Details",
+            style: AppTextStyles.title.copyWith(color: AppColors.orange),
+          ),
+          backgroundColor: Colors.transparent,
+          centerTitle: false,
         ),
-        backgroundColor: Colors.transparent,
-        centerTitle: false,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10),
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              Visibility(
-                visible: !travel_mode,
-                child: TextField(
-                  controller: _sourceSearchController,
-                  decoration: InputDecoration(
-                    hintText: "Source Location",
-                    hintStyle: TextStyle(color: Colors.white),
-                    border: OutlineInputBorder(),
-                    filled: true,
-                    fillColor: AppColors.darkBlue,
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(
-                        color: Colors.blueAccent,
-                        width: 1.5,
+        body: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10),
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                Visibility(
+                  visible: !locationProvider.travelMode,
+                  child: TextField(
+                    controller: _sourceSearchController,
+                    decoration: InputDecoration(
+                      hintText: "Source Location",
+                      hintStyle: TextStyle(color: Colors.white),
+                      border: OutlineInputBorder(),
+                      filled: true,
+                      fillColor: AppColors.darkBlue,
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(
+                          color: Colors.blueAccent,
+                          width: 1.5,
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(
+                          color: Colors.blue,
+                          width: 2.0,
+                        ),
+                      ),
+                      errorBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(
+                          color: Colors.red,
+                          width: 1.5,
+                        ),
+                      ),
+                      focusedErrorBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(
+                          color: Colors.red,
+                          width: 2.0,
+                        ),
                       ),
                     ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(
-                        color: Colors.blue,
-                        width: 2.0,
-                      ),
+                    onChanged: (text) {
+                      _searchPlace(text, "source");
+                      viewSource = false;
+                      setState(() {
+
+                      });
+                    },
+                    onTap: () {
+                      viewSource = true;
+                      setState(() {
+
+                      });
+                    },
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+                if (_sourceSearchResults.isNotEmpty)
+                  Container(
+                    height: 150,
+                    child: ListView.builder(
+                      itemCount: _sourceSearchResults.length,
+                      itemBuilder: (context, index) {
+                        final place = _sourceSearchResults[index];
+                        final location = place['geometry']['location'];
+                        final latLng = LatLng(location['lat'], location['lng']);
+                        return ListTile(
+                          title: Text(place['name'],
+                              style: TextStyle(color: Colors.white)),
+                          subtitle: Text(place['formatted_address'],
+                              style: TextStyle(color: Colors.white)),
+                          onTap: () {
+                            _selectPlace(latLng, place['name'], "source");
+                            placeName = place['name'];
+                            _sourceSearchController.text = placeName;
+                            _sourceSearchResults = [];
+                            sourceLatLng = latLng;
+                            setState(() {});
+                          },
+                        );
+                      },
                     ),
-                    errorBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(
-                        color: Colors.red,
-                        width: 1.5,
+                  ),
+                Visibility(visible: viewSource, child: SizedBox(height: 20)),
+                Visibility(
+                  visible: viewSource,
+                  child: InkWell(
+                    onTap: () {
+                      print("Current : ");
+
+                      viewSource = false;
+                      setState(() {
+
+                      });
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      height: 55,
+                      padding: EdgeInsets.symmetric(horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.transparent,
+                        // Transparent fill color
+                        border:
+                        Border.all(color: Colors.blue, width: 1.5),
+                        // Blue border
+                        borderRadius: BorderRadius.circular(
+                            10), // Rounded corners
                       ),
-                    ),
-                    focusedErrorBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(
-                        color: Colors.red,
-                        width: 2.0,
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Row(
+                          children: [
+                            Container(height: 25,
+                              child: Image(image: AssetImage(
+                                  LocationPageAssets.curr_loc)),),
+                            SizedBox(width: 10,),
+                            Text(
+                              "Current Location",
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                  onChanged: (text) {
-                    _searchPlace(text, "source");
-                    viewSource = false;
-                    setState(() {
-
-                    });
-                  },
-                  onTap: (){
-                    viewSource = true;
-                    setState(() {
-
-                    });
-                  },
-                  style: TextStyle(color: Colors.white),
                 ),
-              ),
-              if (_sourceSearchResults.isNotEmpty)
+                Visibility(visible: !locationProvider.travelMode, child: SizedBox(height: 20)),
+
+                Visibility(
+                  visible: !locationProvider.travelMode,
+                  child: TextField(
+                    controller: _destinationSearchController,
+                    onTap: () {
+                      viewDestination = true;
+                      setState(() {
+
+                      });
+                    },
+                    decoration: InputDecoration(
+                      hintText: "Destination Location",
+                      hintStyle: TextStyle(color: Colors.white),
+                      border: OutlineInputBorder(),
+                      filled: true,
+                      fillColor: AppColors.darkBlue,
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(
+                          color: Colors.blueAccent,
+                          width: 1.5,
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(
+                          color: Colors.blue,
+                          width: 2.0,
+                        ),
+                      ),
+                      errorBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(
+                          color: Colors.red,
+                          width: 1.5,
+                        ),
+                      ),
+                      focusedErrorBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(
+                          color: Colors.red,
+                          width: 2.0,
+                        ),
+                      ),
+                    ),
+                    onChanged: (text) {
+                      _searchPlace(text, "destination");
+                      viewDestination = false;
+                      setState(() {
+
+                      });
+                    },
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+                Visibility(
+                    visible: viewDestination, child: SizedBox(height: 10,)),
+
+                Visibility(
+                  visible: viewDestination,
+                  child: Container(
+                    height: 200,
+                    child: ListView.builder(
+                        itemCount: _knownPlaces.length,
+                        itemBuilder: (context, index) {
+                          var place = _knownPlaces[index];
+                          return InkWell(
+                            onTap: () {
+                              final friendLocationLatitude = _knownPlaces[index]["latitude"];
+                              final friendLocationLongitude = _knownPlaces[index]["longitude"];
+
+                              LatLng latLng = LatLng(friendLocationLatitude,
+                                  friendLocationLongitude);
+
+                              _selectPlace(latLng, place["place_nick_name"],
+                                  "destination");
+                              placeName = place["place_nick_name"];
+                              _destinationSearchController.text = placeName;
+                              _destinationSearchResults = [];
+                              destinationLatLng = latLng;
+                              viewDestination = false;
+
+                              print(viewDestination);
+                              setState(() {});
+                            },
+                            child: Container(
+                              margin: EdgeInsets.symmetric(vertical: 5),
+                              padding: EdgeInsets.symmetric(
+                                  vertical: 8.0, horizontal: 16.0),
+                              decoration: BoxDecoration(
+                                color: AppColors.lightBlue,
+                                // You can change this color if needed
+                                borderRadius: BorderRadius.circular(8.0),
+                              ),
+                              child: Row(
+                                children: [
+                                  CircleAvatar(
+                                    backgroundColor: AppColors.orange,
+                                    backgroundImage: AssetImage(
+                                        LocationPageAssets.location_icon),
+                                    radius: 30,
+                                  ),
+                                  SizedBox(width: 16.0),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment
+                                          .start,
+                                      children: [
+                                        Text(
+                                          place["place_nick_name"],
+                                          style: TextStyle(
+                                              color: Colors.black87,
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold),
+                                        ),
+                                        Text(
+                                          place["location_name"],
+                                          style: TextStyle(
+                                              color: Colors.black38,
+                                              fontSize: 15),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }),
+                  ),
+                ),
+
+                if (_destinationSearchResults.isNotEmpty)
+                  Container(
+                    height: 150,
+                    child: ListView.builder(
+                      itemCount: _destinationSearchResults.length,
+                      itemBuilder: (context, index) {
+                        final place = _destinationSearchResults[index];
+                        final location = place['geometry']['location'];
+                        final latLng = LatLng(location['lat'], location['lng']);
+                        return ListTile(
+                          title: Text(place['name'],
+                              style: TextStyle(color: Colors.white)),
+                          subtitle: Text(place['formatted_address'],
+                              style: TextStyle(color: Colors.white)),
+                          onTap: () {
+                            _selectPlace(latLng, place['name'], "destination");
+                            placeName = place['name'];
+                            placeName = place['name'];
+                            _destinationSearchController.text = placeName;
+                            _destinationSearchResults = [];
+                            destinationLatLng = latLng;
+                            setState(() {});
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                Visibility(visible: !locationProvider.travelMode, child: SizedBox(height: 20)),
                 Container(
-                  height: 150,
-                  child: ListView.builder(
-                    itemCount: _sourceSearchResults.length,
-                    itemBuilder: (context, index) {
-                      final place = _sourceSearchResults[index];
-                      final location = place['geometry']['location'];
-                      final latLng = LatLng(location['lat'], location['lng']);
-                      return ListTile(
-                        title: Text(place['name'],
-                            style: TextStyle(color: Colors.white)),
-                        subtitle: Text(place['formatted_address'],
-                            style: TextStyle(color: Colors.white)),
-                        onTap: () {
-                          _selectPlace(latLng, place['name'], "source");
-                          placeName = place['name'];
-                          _sourceSearchController.text = placeName;
-                          _sourceSearchResults = [];
-                          sourceLatLng = latLng;
-                          setState(() {});
-                        },
-                      );
+                  height: 350,
+                  child: GoogleMap(
+                    onMapCreated: _onMapCreated,
+                    initialCameraPosition: CameraPosition(
+                      target: _selectedSourceLocation,
+                      zoom: 12,
+                    ),
+                    polylines: {
+                      Polyline(
+                        polylineId: PolylineId("route"),
+                        points: polylineCoordinates,
+                        color: Colors.blue,
+                        width: 5,
+                      ),
+                    },
+                    markers: _markers,
+                    mapType: MapType.normal,
+                    onTap: (LatLng latLng) {
+                      setState(() {
+                        _selectedSourceLocation = latLng;
+                        _markers.add(Marker(
+                          markerId: MarkerId("selectedLocation"),
+                          position: _selectedSourceLocation,
+                        ));
+                      });
                     },
                   ),
                 ),
-              Visibility(visible: viewSource, child: SizedBox(height: 20)),
-              Visibility(
-                visible: viewSource,
-                child: InkWell(
-                  onTap: (){
-
-                    print("Current : ");
-
-                    viewSource = false;
-                    setState(() {
-
-                    });
-                  },
+                Visibility(
+                  visible: !locationProvider.travelMode,
+                  child: SizedBox(
+                    height: 10,
+                  ),
+                ),
+                Visibility(
+                  visible: !locationProvider.travelMode,
+                  child: Align(
+                      alignment: Alignment.topLeft,
+                      child: Text("Travel Details",
+                          style: AppTextStyles.bold.copyWith(fontSize: 17))),
+                ),
+                Visibility(
+                  visible: !locationProvider.travelMode,
+                  child: SizedBox(
+                    height: 20,
+                  ),
+                ),
+                Visibility(
+                  visible: !locationProvider.travelMode,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      InkWell(
+                        onTap: () {
+                          modeText = "Taxi";
+                          setState(() {});
+                        },
+                        child: Container(
+                          height: 70,
+                          width: 70,
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 8),
+                          child: Image(
+                              image: AssetImage(LocationPageAssets.taxi_icon)),
+                          decoration: BoxDecoration(
+                              color: AppColors.lightBlue,
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                      InkWell(
+                        onTap: () {
+                          modeText = "Auto Rikshaw";
+                          setState(() {});
+                        },
+                        child: Container(
+                          height: 70,
+                          width: 70,
+                          padding:
+                          EdgeInsets.symmetric(horizontal: 8, vertical: 11),
+                          child: Transform(
+                            alignment: Alignment.center,
+                            transform: Matrix4.identity()
+                              ..scale(-1.0, 1.0, 1.0),
+                            child: Image(
+                                image: AssetImage(
+                                    LocationPageAssets.riksha_icon)),
+                          ),
+                          decoration: BoxDecoration(
+                              color: AppColors.lightBlue,
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                      InkWell(
+                        onTap: () {
+                          modeText = "Bus";
+                          setState(() {});
+                        },
+                        child: Container(
+                          height: 70,
+                          width: 70,
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 8),
+                          child:
+                          Image(image: AssetImage(LocationPageAssets.bus_icon)),
+                          decoration: BoxDecoration(
+                              color: AppColors.lightBlue,
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                      InkWell(
+                        onTap: () {
+                          modeText = "Metro";
+                          setState(() {});
+                        },
+                        child: Container(
+                          height: 70,
+                          width: 70,
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 8),
+                          child: Image(
+                              image: AssetImage(LocationPageAssets.metro_icon)),
+                          decoration: BoxDecoration(
+                              color: AppColors.lightBlue,
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Visibility(
+                  visible: !locationProvider.travelMode,
+                  child: SizedBox(
+                    height: 20,
+                  ),
+                ),
+                Visibility(
+                  visible: !locationProvider.travelMode,
                   child: Container(
                     width: double.infinity,
                     height: 55,
@@ -638,434 +1000,123 @@ class _TravelModePageState extends State<TravelModePage> {
                       color: Colors.transparent, // Transparent fill color
                       border:
                       Border.all(color: Colors.blue, width: 1.5), // Blue border
-                      borderRadius: BorderRadius.circular(10), // Rounded corners
+                      borderRadius: BorderRadius.circular(
+                          10), // Rounded corners
                     ),
                     child: Align(
                       alignment: Alignment.centerLeft,
+                      child: Text(
+                        modeText,
+                        style: TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                ),
+                Visibility(visible: !locationProvider.travelMode, child: SizedBox(height: 20,)),
+                Visibility(
+                  visible: !locationProvider.travelMode,
+                  child: TextField(
+                    controller: vehicleNumberController,
+                    decoration: InputDecoration(
+                      hintText: "Vehicle Number",
+                      hintStyle: TextStyle(color: Colors.white),
+                      border: OutlineInputBorder(),
+                      filled: true,
+                      fillColor: AppColors.darkBlue,
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(
+                          color: Colors.blueAccent,
+                          width: 1.5,
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(
+                          color: Colors.blue,
+                          width: 2.0,
+                        ),
+                      ),
+                      errorBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(
+                          color: Colors.red,
+                          width: 1.5,
+                        ),
+                      ),
+                      focusedErrorBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(
+                          color: Colors.red,
+                          width: 2.0,
+                        ),
+                      ),
+                    ),
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+                if(modeText == "Taxi" && locationProvider.travelMode == true)
+                  Image.asset(
+                      LocationPageAssets.taxi_icon,
+                      height: 250.0),
+                if(modeText == "Auto Rikshaw" && locationProvider.travelMode == true)
+                  Image.asset(
+                      LocationPageAssets.riksha_icon,
+                      height: 250.0),
+                if(modeText == "Bus" && locationProvider.travelMode == true)
+                  Image.asset(
+                      LocationPageAssets.bus_icon,
+                      height: 250.0),
+                if(modeText == "Metro" && locationProvider.travelMode == true)
+                  Image.asset(
+                      LocationPageAssets.metro_icon,
+                      height: 250.0),
+                Visibility(visible: locationProvider.travelMode,
+                    child: Text("Time : $estimatedTime",
+                      style: AppTextStyles.bold.copyWith(
+                          color: Colors.white, fontSize: 18),)),
+                SizedBox(height: 20,),
+                ElevatedButton(
+                  onPressed: () {
+                    if (!locationProvider.travelMode)
+                      getRoute(sourceLatLng, destinationLatLng, locationProvider);
+                    else {
+                      turnOffTravelMode(locationProvider);
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.orange,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: Center(
                       child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Container(height : 25, child: Image(image: AssetImage(LocationPageAssets.curr_loc)),),
-                          SizedBox(width: 10,),
                           Text(
-                            "Current Location",
+                            locationProvider.travelMode ? "Turn Off" : "Start Travel",
                             style: TextStyle(
-                                color: Colors.white, fontWeight: FontWeight.bold),
+                              color: Colors.black,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ],
                       ),
                     ),
                   ),
                 ),
-              ),
-              Visibility( visible: !travel_mode, child: SizedBox(height: 20)),
-
-              Visibility(
-                visible: !travel_mode,
-                child: TextField(
-                  controller: _destinationSearchController,
-                  onTap: (){
-                    viewDestination = true;
-                    setState(() {
-
-                    });
-                  },
-                  decoration: InputDecoration(
-                    hintText: "Destination Location",
-                    hintStyle: TextStyle(color: Colors.white),
-                    border: OutlineInputBorder(),
-                    filled: true,
-                    fillColor: AppColors.darkBlue,
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(
-                        color: Colors.blueAccent,
-                        width: 1.5,
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(
-                        color: Colors.blue,
-                        width: 2.0,
-                      ),
-                    ),
-                    errorBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(
-                        color: Colors.red,
-                        width: 1.5,
-                      ),
-                    ),
-                    focusedErrorBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(
-                        color: Colors.red,
-                        width: 2.0,
-                      ),
-                    ),
-                  ),
-                  onChanged: (text) {
-                    _searchPlace(text, "destination");
-                    viewDestination = false;
-                    setState(() {
-
-                    });
-                  },
-                  style: TextStyle(color: Colors.white),
-                ),
-              ),
-              Visibility(visible: viewDestination, child: SizedBox(height: 10,)),
-
-              Visibility(
-                visible: viewDestination,
-                child: Container(
-                  height: 200,
-                  child: ListView.builder(
-                      itemCount: _knownPlaces.length,
-                      itemBuilder: (context, index) {
-                        var place = _knownPlaces[index];
-                        return InkWell(
-                          onTap: () {
-                            final friendLocationLatitude = _knownPlaces[index]["latitude"];
-                            final friendLocationLongitude = _knownPlaces[index]["longitude"];
-
-                            LatLng latLng = LatLng(friendLocationLatitude, friendLocationLongitude);
-
-                            _selectPlace(latLng, place["place_nick_name"], "destination");
-                            placeName = place["place_nick_name"];
-                            _destinationSearchController.text = placeName;
-                            _destinationSearchResults = [];
-                            destinationLatLng = latLng;
-                            viewDestination = false;
-
-                            print(viewDestination);
-                            setState(() {});
-                          },
-                          child: Container(
-                            margin: EdgeInsets.symmetric(vertical: 5),
-                            padding: EdgeInsets.symmetric(
-                                vertical: 8.0, horizontal: 16.0),
-                            decoration: BoxDecoration(
-                              color: AppColors.lightBlue,
-                              // You can change this color if needed
-                              borderRadius: BorderRadius.circular(8.0),
-                            ),
-                            child: Row(
-                              children: [
-                                CircleAvatar(
-                                  backgroundColor: AppColors.orange,
-                                  backgroundImage: AssetImage(
-                                      LocationPageAssets.location_icon),
-                                  radius: 30,
-                                ),
-                                SizedBox(width: 16.0),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        place["place_nick_name"],
-                                        style: TextStyle(
-                                            color: Colors.black87,
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold),
-                                      ),
-                                      Text(
-                                        place["location_name"],
-                                        style: TextStyle(
-                                            color: Colors.black38, fontSize: 15),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      }),
-                ),
-              ),
-
-              if (_destinationSearchResults.isNotEmpty)
-                Container(
-                  height: 150,
-                  child: ListView.builder(
-                    itemCount: _destinationSearchResults.length,
-                    itemBuilder: (context, index) {
-                      final place = _destinationSearchResults[index];
-                      final location = place['geometry']['location'];
-                      final latLng = LatLng(location['lat'], location['lng']);
-                      return ListTile(
-                        title: Text(place['name'],
-                            style: TextStyle(color: Colors.white)),
-                        subtitle: Text(place['formatted_address'],
-                            style: TextStyle(color: Colors.white)),
-                        onTap: () {
-                          _selectPlace(latLng, place['name'], "destination");
-                          placeName = place['name'];
-                          placeName = place['name'];
-                          _destinationSearchController.text = placeName;
-                          _destinationSearchResults = [];
-                          destinationLatLng = latLng;
-                          setState(() {});
-                        },
-                      );
-                    },
-                  ),
-                ),
-              Visibility(visible: !travel_mode, child: SizedBox(height: 20)),
-              Container(
-                height: 350,
-                child: GoogleMap(
-                  onMapCreated: _onMapCreated,
-                  initialCameraPosition: CameraPosition(
-                    target: _selectedSourceLocation,
-                    zoom: 12,
-                  ),
-                  polylines: {
-                    Polyline(
-                      polylineId: PolylineId("route"),
-                      points: polylineCoordinates,
-                      color: Colors.blue,
-                      width: 5,
-                    ),
-                  },
-                  markers: _markers,
-                  mapType: MapType.normal,
-                  onTap: (LatLng latLng) {
-                    setState(() {
-                      _selectedSourceLocation = latLng;
-                      _markers.add(Marker(
-                        markerId: MarkerId("selectedLocation"),
-                        position: _selectedSourceLocation,
-                      ));
-                    });
-                  },
-                ),
-              ),
-              Visibility(
-                visible: !travel_mode,
-                child: SizedBox(
-                  height: 10,
-                ),
-              ),
-              Visibility(
-                visible: !travel_mode,
-                child: Align(
-                    alignment: Alignment.topLeft,
-                    child: Text("Travel Details",
-                        style: AppTextStyles.bold.copyWith(fontSize: 17))),
-              ),
-              Visibility(
-                visible: !travel_mode,
-                child: SizedBox(
-                  height: 20,
-                ),
-              ),
-              Visibility(
-                visible: !travel_mode,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    InkWell(
-                      onTap: () {
-                        modeText = "Taxi";
-                        setState(() {});
-                      },
-                      child: Container(
-                        height: 70,
-                        width: 70,
-                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                        child: Image(
-                            image: AssetImage(LocationPageAssets.taxi_icon)),
-                        decoration: BoxDecoration(
-                            color: AppColors.lightBlue,
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                    InkWell(
-                      onTap: () {
-                        modeText = "Auto Rikshaw";
-                        setState(() {});
-                      },
-                      child: Container(
-                        height: 70,
-                        width: 70,
-                        padding:
-                            EdgeInsets.symmetric(horizontal: 8, vertical: 11),
-                        child: Transform(
-                          alignment: Alignment.center,
-                          transform: Matrix4.identity()..scale(-1.0, 1.0, 1.0),
-                          child: Image(
-                              image: AssetImage(LocationPageAssets.riksha_icon)),
-                        ),
-                        decoration: BoxDecoration(
-                            color: AppColors.lightBlue,
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                    InkWell(
-                      onTap: () {
-                        modeText = "Bus";
-                        setState(() {});
-                      },
-                      child: Container(
-                        height: 70,
-                        width: 70,
-                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                        child:
-                            Image(image: AssetImage(LocationPageAssets.bus_icon)),
-                        decoration: BoxDecoration(
-                            color: AppColors.lightBlue,
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                    InkWell(
-                      onTap: () {
-                        modeText = "Metro";
-                        setState(() {});
-                      },
-                      child: Container(
-                        height: 70,
-                        width: 70,
-                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                        child: Image(
-                            image: AssetImage(LocationPageAssets.metro_icon)),
-                        decoration: BoxDecoration(
-                            color: AppColors.lightBlue,
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Visibility(
-                visible: !travel_mode,
-                child: SizedBox(
-                  height: 20,
-                ),
-              ),
-              Visibility(
-                visible: !travel_mode,
-                child: Container(
-                  width: double.infinity,
-                  height: 55,
-                  padding: EdgeInsets.symmetric(horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.transparent, // Transparent fill color
-                    border:
-                        Border.all(color: Colors.blue, width: 1.5), // Blue border
-                    borderRadius: BorderRadius.circular(10), // Rounded corners
-                  ),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      modeText,
-                      style: TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ),
-              ),
-              Visibility(visible: !travel_mode,child: SizedBox(height: 20,)),
-              Visibility(
-                visible: !travel_mode,
-                child: TextField(
-                  controller: vehicleNumberController,
-                  decoration: InputDecoration(
-                    hintText: "Vehicle Number",
-                    hintStyle: TextStyle(color: Colors.white),
-                    border: OutlineInputBorder(),
-                    filled: true,
-                    fillColor: AppColors.darkBlue,
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(
-                        color: Colors.blueAccent,
-                        width: 1.5,
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(
-                        color: Colors.blue,
-                        width: 2.0,
-                      ),
-                    ),
-                    errorBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(
-                        color: Colors.red,
-                        width: 1.5,
-                      ),
-                    ),
-                    focusedErrorBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(
-                        color: Colors.red,
-                        width: 2.0,
-                      ),
-                    ),
-                  ),
-                  style: TextStyle(color: Colors.white),
-                ),
-              ),
-              if(modeText == "Taxi" && travel_mode==true)
-                Image.asset(
-                    LocationPageAssets.taxi_icon,
-                    height: 250.0),
-              if(modeText == "Auto Rikshaw" && travel_mode==true)
-                Image.asset(
-                    LocationPageAssets.riksha_icon,
-                    height: 250.0),
-              if(modeText == "Bus" && travel_mode==true)
-                Image.asset(
-                    LocationPageAssets.bus_icon,
-                    height: 250.0),
-              if(modeText == "Metro" && travel_mode==true)
-                Image.asset(
-                    LocationPageAssets.metro_icon,
-                    height: 250.0),
-              Visibility(visible: travel_mode, child: Text("Time : $estimatedTime", style: AppTextStyles.bold.copyWith(color: Colors.white, fontSize: 18),)),
-              SizedBox(height: 20,),
-              ElevatedButton(
-                onPressed: () {
-                  if(!travel_mode)
-                  getRoute(sourceLatLng, destinationLatLng);
-                  else{
-                    turnOffTravelMode();
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.orange,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                ),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: Center(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          travel_mode ? "Turn Off": "Start Travel",
-                          style: TextStyle(
-                            color: Colors.black,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
-      ),
+      );
+    }
     );
   }
 }

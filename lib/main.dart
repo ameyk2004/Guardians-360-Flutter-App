@@ -3,12 +3,14 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:guardians_app/auth_wrapper.dart';
 import 'package:guardians_app/firebase_options.dart';
+import 'package:guardians_app/providers/location_provider.dart';
 import 'package:guardians_app/screens/adhar_upload_page.dart';
 import 'package:guardians_app/screens/friend_pages/contact_page.dart';
 import 'package:guardians_app/screens/home_screen.dart';
 import 'package:guardians_app/services/device_token_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'config/base_config.dart';
@@ -18,7 +20,14 @@ void main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await FirebaseMessagingHelper().initNotifications();
 
-  runApp(const MyApp());
+  runApp(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => LocationProvider()),
+        ],
+        child: MyApp(),
+      ),
+  );
 }
 
 class MyApp extends StatelessWidget {

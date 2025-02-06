@@ -221,9 +221,6 @@ class _HomeScreenState extends State<HomeScreen>
         print(messageToSend);
         print(messageToSend2);
 
-        // String encryptedMessage = Encryption.encryptMessage(message, publicKey);
-        // print(encryptedMessage);
-
         if (!_smsSent) {
           SmsService().sendMessage(friend_phones, messageToSend);
           SmsService().sendMessage(friend_phones, messageToSend2);

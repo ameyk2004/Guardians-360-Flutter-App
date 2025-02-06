@@ -27,7 +27,7 @@
 
     <application
 
-        android:label="guardians_app"
+        android:label="Guardians 360"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon">
 

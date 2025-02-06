@@ -3,8 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:guardians_app/config/base_config.dart';
 import 'package:http/http.dart' as http;
+import 'package:path/path.dart';
+import 'package:provider/provider.dart';
 import 'dart:convert';
 
+import '../providers/location_provider.dart';
 import '../utils/global_variable.dart'; // For encoding data into JSON
 
 class LocationService {
@@ -31,7 +34,7 @@ class LocationService {
     return {'latitude': position.latitude, 'longitude': position.longitude};
   }
 
-  Future<void> startTracking() async {
+  Future<void> startTracking(BuildContext context) async {
     print("Tracking started...");
 
     LocationPermission permission = await Geolocator.requestPermission();
@@ -45,7 +48,7 @@ class LocationService {
       Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
-      await _sendLocationToFriend(position);
+      await _sendLocationToFriend(position, context);
     });
   }
 
@@ -54,7 +57,7 @@ class LocationService {
     print("Tracking stopped.");
   }
 
-  Future<void> _sendLocationToFriend(Position position) async {
+  Future<void> _sendLocationToFriend(Position position, BuildContext context) async {
     try {
       final url = Uri.parse('${DevConfig().travelAlertServiceBaseUrl}location/$userID'); // Replace with actual URL
 
@@ -88,6 +91,8 @@ class LocationService {
         final data = jsonDecode(response.body);
         travel_mode = data['travel_mode'];
         print(travel_mode);
+
+        Provider.of<LocationProvider>(context, listen: false).updateTravelMode(data['travel_mode']);
 
 
       } else {

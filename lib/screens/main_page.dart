@@ -32,7 +32,7 @@ class _MainPageState extends State<MainPage> {
       TravelModePage(userID: widget.userID), // Travel placeholder
     ];
 
-    LocationService(userID: widget.userID).startTracking();
+    LocationService(userID: widget.userID).startTracking(context);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       InternetConnectivityInApp().listenToConnectivity(context);
