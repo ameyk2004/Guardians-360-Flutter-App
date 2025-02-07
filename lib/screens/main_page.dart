@@ -5,6 +5,7 @@ import 'package:guardians_app/screens/incident_reporting/incident_reporting.dart
 import 'package:guardians_app/screens/location/safe_zones_add.dart';
 import 'package:guardians_app/utils/colors.dart';
 
+import '../services/background_service.dart';
 import '../services/check_connectivity.dart';
 import '../services/location_service.dart';
 import 'location/travel_mode_page.dart';
@@ -22,6 +23,11 @@ class _MainPageState extends State<MainPage> {
 
   late List<Widget> _pages;
 
+  Future<void> startTracking() async {
+    print("Main Page Loaded");
+    // await BackgroundLocationService.initService(widget.userID);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -32,7 +38,7 @@ class _MainPageState extends State<MainPage> {
       TravelModePage(userID: widget.userID), // Travel placeholder
     ];
 
-    LocationService(userID: widget.userID).startTracking(context);
+    startTracking();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       InternetConnectivityInApp().listenToConnectivity(context);

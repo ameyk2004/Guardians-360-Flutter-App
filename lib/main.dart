@@ -1,3 +1,6 @@
+import 'package:android_intent_plus/android_intent.dart';
+import 'package:android_intent_plus/flag.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -7,6 +10,7 @@ import 'package:guardians_app/providers/location_provider.dart';
 import 'package:guardians_app/screens/adhar_upload_page.dart';
 import 'package:guardians_app/screens/friend_pages/contact_page.dart';
 import 'package:guardians_app/screens/home_screen.dart';
+import 'package:guardians_app/services/background_service.dart';
 import 'package:guardians_app/services/device_token_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -20,6 +24,10 @@ void main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await FirebaseMessagingHelper().initNotifications();
 
+  await requestPermissions();
+  disableBatteryOptimization();
+  await initService();
+
   runApp(
       MultiProvider(
         providers: [
@@ -28,6 +36,45 @@ void main() async {
         child: MyApp(),
       ),
   );
+}
+
+Future<void> requestPermissions() async {
+  // Request location permission
+  var locationStatus = await Permission.location.request();
+  if (locationStatus.isDenied) {
+    // Handle the case when the user denies the permission
+    print("Location permission denied");
+  }
+
+  // Request location always permission
+  var locationAlwaysStatus = await Permission.locationAlways.request();
+  if (locationAlwaysStatus.isDenied) {
+    print("Location always permission denied");
+  }
+
+  // Request notification permission
+  var notificationStatus = await Permission.notification.request();
+  if (notificationStatus.isDenied) {
+    print("Notification permission denied");
+  }
+}
+
+Future<void> disableBatteryOptimization() async {
+  final androidInfo = await DeviceInfoPlugin().androidInfo;
+  final manufacturer = androidInfo.manufacturer.toLowerCase();
+  final model = androidInfo.model.toLowerCase();
+
+  // Check if battery optimization is already disabled
+  bool isIgnoringBatteryOptimizations = await Permission.ignoreBatteryOptimizations.isGranted;
+
+  if (!isIgnoringBatteryOptimizations) {
+    final AndroidIntent intent = AndroidIntent(
+      action: 'android.settings.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS',
+      data: 'com.ameyTech.guardians_app', // Replace with your actual package name
+      flags: <int>[Flag.FLAG_ACTIVITY_NEW_TASK],
+    );
+    await intent.launch();
+  }
 }
 
 class MyApp extends StatelessWidget {

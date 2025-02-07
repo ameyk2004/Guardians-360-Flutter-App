@@ -1,3 +1,5 @@
+import 'package:flutter/cupertino.dart';
+
 bool travel_mode = false;
 Map<String, dynamic> travel_details = {
   "location_details": {
@@ -18,3 +20,5 @@ Map<String, dynamic> travel_details = {
 };
 
 int notif_no = 0;
+
+BuildContext? contextOfTravelPage;

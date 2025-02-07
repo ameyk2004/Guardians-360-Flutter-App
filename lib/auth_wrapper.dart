@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:guardians_app/screens/home_screen.dart';
 import 'package:guardians_app/screens/main_page.dart';
 import 'package:guardians_app/screens/onboarding_screen.dart';
+import 'package:guardians_app/services/background_service.dart';
 import 'package:guardians_app/services/cache_service.dart';
 
 class AuthWrapper extends StatefulWidget {

@@ -25,6 +25,10 @@
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 
+    <!-- Required for Android 14+ -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+
+
     <application
 
         android:label="Guardians 360"
@@ -33,6 +37,13 @@
 
         <meta-data android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyAVv-fXnoWeN6LG3c7RqAXykXtIUq4scnE"/>
+
+        <service
+            android:name="id.flutter.flutter_background_service.BackgroundService"
+            android:permission="android.permission.FOREGROUND_SERVICE"
+            android:foregroundServiceType="location"
+            android:exported="false"
+            tools:replace="android:exported" />
 
 
 
