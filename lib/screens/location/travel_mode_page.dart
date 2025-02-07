@@ -1,16 +1,20 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
+import 'package:guardians_app/services/cache_service.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'dart:convert';
 import '../../config/base_config.dart';
 import '../../config/travel_alert_service.dart';
 import '../../providers/location_provider.dart';
+import '../../services/background_service.dart';
 import '../../services/location_service.dart';
 import '../../utils/asset_suppliers/contacts_page_assets.dart';
 import '../../utils/asset_suppliers/location_page_assets.dart';
@@ -43,6 +47,8 @@ class _TravelModePageState extends State<TravelModePage> {
 
   Map<String, double?> currentlocationData = {};
 
+  double distance_left_to_destination = 10000;
+
 
   bool viewDestination = false;
   bool viewSource = false;
@@ -74,6 +80,41 @@ class _TravelModePageState extends State<TravelModePage> {
       return 45;
     } else {
       return 75;
+    }
+  }
+
+  void calculateDistanceToDestination() {
+      Timer.periodic(const Duration(milliseconds: 500), (timer) async {
+        Position? position = await getCurrentLocation();
+        if (position != null && travel_mode == true) {
+          double distance = Geolocator.distanceBetween(
+              position.latitude,
+              position.longitude,
+              travel_details["location_details"]['destination']['latitude'],
+              travel_details["location_details"]['destination']['longitude']);
+
+          print("DISTANCE TO DESTINATION LEFT: $distance");
+
+          if(distance_left_to_destination < 50){
+            print("TURNING OFF BY DISTANCE");
+
+            turnOffTravelMode(LocationProvider.instance);
+
+          }
+
+          setState(() {
+            distance_left_to_destination = distance;
+          });
+        }
+      });
+  }
+
+  String formatDistance(double distance) {
+    if (distance >= 1000) {
+      double km = distance / 1000;
+      return "${km.toStringAsFixed(2)} km";  // Format to 2 decimal places
+    } else {
+      return "${distance.toStringAsFixed(2)} m";
     }
   }
 
@@ -344,7 +385,7 @@ class _TravelModePageState extends State<TravelModePage> {
     }
   }
 
-  void turnOnTravelMode(locationProvider){
+  Future<void> turnOnTravelMode(locationProvider) async {
 
     print("Turning on Travel Mode . . . . . . . ");
 
@@ -369,9 +410,10 @@ class _TravelModePageState extends State<TravelModePage> {
     travel_details = set_travel_details;
 
     print(travel_details);
+
     travel_mode = true;
     locationProvider.updateTravelMode(true);
-
+    await CacheService().saveTravelDetails(travel_mode, jsonEncode(travel_details));
     FlutterBackgroundService().invoke("updateTravelMode", {"travel_mode": true, "travel_details" : travel_details});
 
     showDialog(
@@ -515,6 +557,8 @@ CameraUpdate.newLatLng(_selectedDestinationLocation),
 
   Future<void> turnOffTravelMode(locationProvider) async {
 
+    print("Turning OFF travel mode ...");
+
     final response = await http.get(
       Uri.parse("${DevConfig().travelAlertServiceBaseUrl}location/travel-mode-off/${widget.userID}"),
       headers: {
@@ -523,6 +567,7 @@ CameraUpdate.newLatLng(_selectedDestinationLocation),
     );
 
     print(response.body);
+    print(response.statusCode);
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
@@ -537,8 +582,44 @@ CameraUpdate.newLatLng(_selectedDestinationLocation),
 
 
     locationProvider.updateTravelMode(false);
+    travel_mode = false;
+
+    print(travel_mode);
+    await CacheService().saveTravelDetails(travel_mode, jsonEncode(travel_details));
 
     FlutterBackgroundService().invoke("updateTravelMode", {"travel_mode": false, "travel_details" : travel_details});
+    setState(() {
+
+    });
+  }
+
+  Future<void> getTravelDetails() async {
+    print("Fetching Travel Details");
+    var travel_mode_nullable = (await CacheService().getTravelmode(
+        'travel_mode'));
+
+    var data = await CacheService().getData('travel_details');
+
+    if(data != null){
+      travel_details = jsonDecode(data);
+    }
+
+
+    print("RECEIVED TRAVEL MODE  : $travel_mode_nullable");
+
+    print("Data FETCHED FROM CACHE ON PAGE LOAD");
+
+    if (travel_mode_nullable != null) {
+      travel_mode = travel_mode_nullable;
+      LocationProvider.instance.updateTravelMode(travel_mode);
+      FlutterBackgroundService().invoke("updateTravelMode",
+          {"travel_mode": travel_mode, "travel_details": travel_details});
+      print("Function invoked");
+    }
+    else {
+      print("Cache was null");
+    }
+
     setState(() {
 
     });
@@ -547,15 +628,23 @@ CameraUpdate.newLatLng(_selectedDestinationLocation),
 
   @override
   void initState() {
+    print("Page Loaded");
     getPlaces();
+    getTravelDetails();
+    calculateDistanceToDestination();
     super.initState();
   }
 
   @override
   Widget build(BuildContext context) {
+
+    print("UI REBUILDING");
+
     return Consumer<LocationProvider>(
         builder: (context, locationProvider, child)
     {
+
+      print("Travel Mode by Provider : ${locationProvider.travelMode}");
       return Scaffold(
         backgroundColor: AppColors.darkBlue,
         resizeToAvoidBottomInset: true,
@@ -699,10 +788,10 @@ CameraUpdate.newLatLng(_selectedDestinationLocation),
                     ),
                   ),
                 ),
-                Visibility(visible: !locationProvider.travelMode, child: SizedBox(height: 20)),
+                Visibility(visible: !travel_mode, child: SizedBox(height: 20)),
 
                 Visibility(
-                  visible: !locationProvider.travelMode,
+                  visible: !travel_mode,
                   child: TextField(
                     controller: _destinationSearchController,
                     onTap: () {
@@ -860,7 +949,7 @@ CameraUpdate.newLatLng(_selectedDestinationLocation),
                       },
                     ),
                   ),
-                Visibility(visible: !locationProvider.travelMode, child: SizedBox(height: 20)),
+                Visibility(visible: !travel_mode, child: SizedBox(height: 20)),
                 Container(
                   height: 350,
                   child: GoogleMap(
@@ -891,26 +980,26 @@ CameraUpdate.newLatLng(_selectedDestinationLocation),
                   ),
                 ),
                 Visibility(
-                  visible: !locationProvider.travelMode,
+                  visible: !travel_mode,
                   child: SizedBox(
                     height: 10,
                   ),
                 ),
                 Visibility(
-                  visible: !locationProvider.travelMode,
+                  visible: !travel_mode,
                   child: Align(
                       alignment: Alignment.topLeft,
                       child: Text("Travel Details",
                           style: AppTextStyles.bold.copyWith(fontSize: 17))),
                 ),
                 Visibility(
-                  visible: !locationProvider.travelMode,
+                  visible: !travel_mode,
                   child: SizedBox(
                     height: 20,
                   ),
                 ),
                 Visibility(
-                  visible: !locationProvider.travelMode,
+                  visible: !travel_mode,
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
@@ -992,13 +1081,13 @@ CameraUpdate.newLatLng(_selectedDestinationLocation),
                   ),
                 ),
                 Visibility(
-                  visible: !locationProvider.travelMode,
+                  visible: !travel_mode,
                   child: SizedBox(
                     height: 20,
                   ),
                 ),
                 Visibility(
-                  visible: !locationProvider.travelMode,
+                  visible: !travel_mode,
                   child: Container(
                     width: double.infinity,
                     height: 55,
@@ -1020,9 +1109,9 @@ CameraUpdate.newLatLng(_selectedDestinationLocation),
                     ),
                   ),
                 ),
-                Visibility(visible: !locationProvider.travelMode, child: SizedBox(height: 20,)),
+                Visibility(visible: !travel_mode, child: SizedBox(height: 20,)),
                 Visibility(
-                  visible: !locationProvider.travelMode,
+                  visible: !travel_mode,
                   child: TextField(
                     controller: vehicleNumberController,
                     decoration: InputDecoration(
@@ -1063,30 +1152,35 @@ CameraUpdate.newLatLng(_selectedDestinationLocation),
                     style: TextStyle(color: Colors.white),
                   ),
                 ),
-                if(modeText == "Taxi" && locationProvider.travelMode == true)
+                if(modeText == "Taxi" && travel_mode == true)
                   Image.asset(
                       LocationPageAssets.taxi_icon,
-                      height: 250.0),
-                if(modeText == "Auto Rikshaw" && locationProvider.travelMode == true)
+                      height: 200.0),
+                if(modeText == "Auto Rikshaw" && travel_mode == true)
                   Image.asset(
                       LocationPageAssets.riksha_icon,
-                      height: 250.0),
-                if(modeText == "Bus" && locationProvider.travelMode == true)
+                      height: 200.0),
+                if(modeText == "Bus" && travel_mode == true)
                   Image.asset(
                       LocationPageAssets.bus_icon,
-                      height: 250.0),
-                if(modeText == "Metro" && locationProvider.travelMode == true)
+                      height: 200.0),
+                if(modeText == "Metro" && travel_mode == true)
                   Image.asset(
                       LocationPageAssets.metro_icon,
-                      height: 250.0),
-                Visibility(visible: locationProvider.travelMode,
+                      height: 200.0),
+                Visibility(visible: travel_mode,
                     child: Text("Time : $estimatedTime",
                       style: AppTextStyles.bold.copyWith(
-                          color: Colors.white, fontSize: 18),)),
+                          color: Colors.white, fontSize: 16),)),
+                SizedBox(height: 20,),
+                Visibility(visible: travel_mode,
+                    child: Text("Distance to Destination : ${formatDistance(distance_left_to_destination)}",
+                      style: AppTextStyles.bold.copyWith(
+                          color: Colors.white, fontSize: 16),)),
                 SizedBox(height: 20,),
                 ElevatedButton(
                   onPressed: () {
-                    if (!locationProvider.travelMode)
+                    if (!travel_mode)
                       getRoute(sourceLatLng, destinationLatLng, locationProvider);
                     else {
                       turnOffTravelMode(locationProvider);
@@ -1106,7 +1200,7 @@ CameraUpdate.newLatLng(_selectedDestinationLocation),
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
-                            locationProvider.travelMode ? "Turn Off" : "Start Travel",
+                            travel_mode ? "Turn Off" : "Start Travel",
                             style: TextStyle(
                               color: Colors.black,
                               fontSize: 20,

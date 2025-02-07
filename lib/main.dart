@@ -4,6 +4,7 @@ import 'package:android_intent_plus/android_intent.dart';
 import 'package:android_intent_plus/flag.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:guardians_app/auth_wrapper.dart';
@@ -15,6 +16,7 @@ import 'package:guardians_app/screens/home_screen.dart';
 import 'package:guardians_app/services/background_service.dart';
 import 'package:guardians_app/services/cache_service.dart';
 import 'package:guardians_app/services/device_token_service.dart';
+import 'package:guardians_app/utils/global_variable.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
@@ -32,18 +34,6 @@ void main() async {
   await requestPermissions();
   disableBatteryOptimization();
 
-  String? userDataString = await CacheService().getData("user_data");
-  var userData = {};
-
-  if (userDataString != null && userDataString.isNotEmpty) {
-    try {
-      userData = jsonDecode(jsonDecode(userDataString));
-      print("User ID FETCHED IN BACKGROUND : ${userData['userID']}");
-    } catch (e) {
-      print("Error parsing user data: $e");
-    }
-  }
-
   runApp(
     ChangeNotifierProvider<LocationProvider>.value(
       value: LocationProvider.instance, // Ensure using the singleton
@@ -53,9 +43,31 @@ void main() async {
 
 
 
-  Future.delayed(Duration.zero, () async {
-    await initService();
-  });
+  String? userDataString = await CacheService().getData("user_data");
+  var userData = {};
+
+  if (userDataString != null && userDataString.isNotEmpty) {
+    try {
+      userData = jsonDecode(jsonDecode(userDataString));
+      print("User ID FETCHED IN MAIN : ${userData['userID']}");
+    } catch (e) {
+      print("Error parsing user data: $e");
+    }
+  }
+
+  print(userData['userID']);
+
+  await getTravelDetails();
+
+  if(userData['userID'] != null){
+    Future.delayed(Duration.zero, () async {
+      await initService();
+    });
+  }
+  else{
+    print("Skipping Bakcground Service since not Authenticated");
+  }
+
 }
 
 Future<void> requestPermissions() async {
@@ -94,6 +106,34 @@ Future<void> disableBatteryOptimization() async {
       flags: <int>[Flag.FLAG_ACTIVITY_NEW_TASK],
     );
     await intent.launch();
+  }
+}
+
+Future<void> getTravelDetails() async {
+  print("Fetching Travel Details IN MAIN");
+  var travel_mode_nullable = (await CacheService().getTravelmode(
+      'travel_mode'));
+
+  var data = await CacheService().getData('travel_details');
+
+  if(data != null){
+    travel_details = jsonDecode(data);
+  }
+
+
+  print("RECEIVED TRAVEL MODE  : $travel_mode_nullable");
+
+  print("Data FETCHED FROM CACHE ON PAGE LOAD");
+
+  if (travel_mode_nullable != null) {
+    travel_mode = travel_mode_nullable;
+    LocationProvider.instance.updateTravelMode(travel_mode);
+    FlutterBackgroundService().invoke("updateTravelMode",
+        {"travel_mode": travel_mode, "travel_details": travel_details});
+    print("Function invoked");
+  }
+  else {
+    print("Cache was null");
   }
 }
 

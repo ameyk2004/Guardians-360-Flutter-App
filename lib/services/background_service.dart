@@ -24,11 +24,10 @@ Future<void> initService() async {
   service.on("updateTravelMode").listen((event) {
     bool updatedTravelMode = event?["travel_mode"] ?? false;
 
-    print("Received travel mode update from background: $updatedTravelMode");
+    print("🟠 UI Thread: Received travel mode update from background: $updatedTravelMode");
 
-    // ✅ Update Provider in UI isolate
+    // Update Provider in UI isolate
     LocationProvider.instance.updateTravelMode(updatedTravelMode);
-
   });
 }
 
@@ -41,8 +40,12 @@ void onStart(ServiceInstance service) async {
     bool updatedMode = event?["travel_mode"] ?? false;
     travel_mode = updatedMode;
     travel_details = event?["travel_details"] ?? {};
-    print("Updated travel_mode in background isolate: $travel_mode");
-    print("Updated travel_details in background isolate: $travel_details");
+
+    print("🟥 Background Isolate: Received travel_mode = $travel_mode");
+    print("🟥 Background Isolate: Received travel_details = $travel_details");
+
+    // Send data to main thread
+    FlutterBackgroundService().invoke("updateTravelMode", {"travel_mode": travel_mode});
   });
 
   Future<void> fetchUserDataAndStartTracking() async {
@@ -52,7 +55,7 @@ void onStart(ServiceInstance service) async {
     if (userDataString != null && userDataString.isNotEmpty) {
       try {
         userData = jsonDecode(jsonDecode(userDataString));
-        print("User ID FETCHED IN BACKGROUND : ${userData['userID']}");
+        print("User ID FETCHED IN BACKGROUND SERVICE : ${userData['userID']}");
       } catch (e) {
         print("Error parsing user data: $e");
       }
@@ -108,10 +111,11 @@ Future<void> _sendLocationToFriend(Position position, int userID) async {
     final headers = {'Content-Type': 'application/json'};
     print("Travel Mode : $travel_mode");
 
+    double distance = 0;
     if (travel_mode) {
       print("Inside Travel Mode");
 
-      double distance = Geolocator.distanceBetween(
+      distance = Geolocator.distanceBetween(
           position.latitude,
           position.longitude,
           travel_details["location_details"]['destination']['latitude'],
@@ -125,7 +129,8 @@ Future<void> _sendLocationToFriend(Position position, int userID) async {
       'latitude': position.latitude,
       'longitude': position.longitude,
       'timestamp': DateTime.now().toIso8601String(),
-      if (travel_mode) "travel_details": travel_details,
+      if (travel_mode && distance > 50) "travel_details": travel_details,
+
     });
 
     print(jsonDecode(body));
@@ -139,10 +144,10 @@ Future<void> _sendLocationToFriend(Position position, int userID) async {
       print("Travel Mode : $travel_mode");
 
       if(travel_mode != null){
+        print("Recieved From Server : $travel_mode");
+        await CacheService().saveTravelDetails(travel_mode, jsonEncode(travel_details));
         FlutterBackgroundService().invoke("updateTravelMode", {"travel_mode": travel_mode} );
       }
-
-      print("Sent Location to Backend");
       print("Data : $data");
     } else {
       print("Failed to send location: ${response.statusCode}");

@@ -17,16 +17,16 @@ class LocationProvider extends ChangeNotifier {
   bool get travelMode => _travelMode;
 
   void updateTravelMode(bool newMode) {
+    print("🟢 UI Thread: Received Travel Mode Update: $newMode");
+    print("🔵 UI Thread: Previous Travel Mode: $_travelMode");
 
-    print("Received NewMode : $newMode");
-    print("Previous Travel Mode : $travelMode");
     if (_travelMode != newMode) {
       _travelMode = newMode;
       travel_mode = _travelMode;
       notifyListeners(); // Notify all listening widgets
 
-
-      print("Travel Mode Updated to : $_travelMode");
+      print("🟣 UI Thread: Travel Mode Updated to: $_travelMode");
     }
   }
+
 }

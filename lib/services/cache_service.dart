@@ -19,6 +19,16 @@ class CacheService {
     print('device token saved.');
   }
 
+  Future<void> saveTravelDetails(bool travel_mode, String travel_details) async {
+    print('--- saveTravelDetails ---');
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setBool("travel_mode", travel_mode);
+    await prefs.setString("travel_details", travel_details);
+
+    print('Travel Mode Saved in Cache : $travel_mode');
+    print('Tavel Details Saved in Cache : $travel_details');
+  }
+
   Future<void> savePublicKey(String value) async {
     print('--- savePublicKey ---');
     final SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -42,6 +52,17 @@ class CacheService {
     print('--- getData ---');
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     String? data = prefs.getString(key);
+    if (data != null) {
+    } else {
+      print('No data found for key: $key');
+    }
+    return data;
+  }
+
+  Future<bool?> getTravelmode(String key) async {
+    print('--- getData ---');
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    bool? data = prefs.getBool(key);
     if (data != null) {
     } else {
       print('No data found for key: $key');
