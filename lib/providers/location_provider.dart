@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:guardians_app/utils/global_variable.dart';
 
 class LocationProvider extends ChangeNotifier {
   static final LocationProvider _instance = LocationProvider._internal();
@@ -15,10 +16,17 @@ class LocationProvider extends ChangeNotifier {
 
   bool get travelMode => _travelMode;
 
-  void updateTravelMode(bool mode) {
-    if (_travelMode != mode) {
-      _travelMode = mode;
-      notifyListeners(); // Ensure UI updates when travelMode changes
+  void updateTravelMode(bool newMode) {
+
+    print("Received NewMode : $newMode");
+    print("Previous Travel Mode : $travelMode");
+    if (_travelMode != newMode) {
+      _travelMode = newMode;
+      travel_mode = _travelMode;
+      notifyListeners(); // Notify all listening widgets
+
+
+      print("Travel Mode Updated to : $_travelMode");
     }
   }
 }

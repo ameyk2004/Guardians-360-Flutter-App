@@ -20,7 +20,7 @@ class DevConfig implements BaseConfig {
   int get authServicePort => 5001;
 
   @override
-  String get travelAlertServiceHost => "192.168.240.182";
+  String get travelAlertServiceHost => "192.168.1.89";
   @override
   int get travelAlertServicePort => 8000;
 

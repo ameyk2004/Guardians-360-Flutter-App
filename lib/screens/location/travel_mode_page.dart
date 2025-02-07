@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
@@ -122,7 +123,7 @@ class _TravelModePageState extends State<TravelModePage> {
         estimatedTimeInMinutes = parseEstimatedTime(estimatedTime);
         print(estimatedTimeInMinutes);
         notificationFrequency = calculateNotificationFrequency(estimatedTimeInMinutes);
-        print(notificationFrequency);
+        print("Notification Freq : $notificationFrequency");
 
         // Adjust camera to fit the polyline route
         _adjustCameraToRoute();
@@ -366,8 +367,12 @@ class _TravelModePageState extends State<TravelModePage> {
     };
 
     travel_details = set_travel_details;
-    // travel_mode = true;
-    locationProvider.updateTravelMode(!locationProvider.travelMode);
+
+    print(travel_details);
+    travel_mode = true;
+    locationProvider.updateTravelMode(true);
+
+    FlutterBackgroundService().invoke("updateTravelMode", {"travel_mode": true, "travel_details" : travel_details});
 
     showDialog(
       context: context,
@@ -531,7 +536,9 @@ CameraUpdate.newLatLng(_selectedDestinationLocation),
     }
 
 
-    locationProvider.updateTravelMode(!locationProvider.travelMode);
+    locationProvider.updateTravelMode(false);
+
+    FlutterBackgroundService().invoke("updateTravelMode", {"travel_mode": false, "travel_details" : travel_details});
     setState(() {
 
     });

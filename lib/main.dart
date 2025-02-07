@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:android_intent_plus/android_intent.dart';
 import 'package:android_intent_plus/flag.dart';
 import 'package:device_info_plus/device_info_plus.dart';
@@ -11,6 +13,7 @@ import 'package:guardians_app/screens/adhar_upload_page.dart';
 import 'package:guardians_app/screens/friend_pages/contact_page.dart';
 import 'package:guardians_app/screens/home_screen.dart';
 import 'package:guardians_app/services/background_service.dart';
+import 'package:guardians_app/services/cache_service.dart';
 import 'package:guardians_app/services/device_token_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -24,18 +27,35 @@ void main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await FirebaseMessagingHelper().initNotifications();
 
+
+
   await requestPermissions();
   disableBatteryOptimization();
-  await initService();
+
+  String? userDataString = await CacheService().getData("user_data");
+  var userData = {};
+
+  if (userDataString != null && userDataString.isNotEmpty) {
+    try {
+      userData = jsonDecode(jsonDecode(userDataString));
+      print("User ID FETCHED IN BACKGROUND : ${userData['userID']}");
+    } catch (e) {
+      print("Error parsing user data: $e");
+    }
+  }
 
   runApp(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider(create: (_) => LocationProvider()),
-        ],
-        child: MyApp(),
-      ),
+    ChangeNotifierProvider<LocationProvider>.value(
+      value: LocationProvider.instance, // Ensure using the singleton
+      child: MyApp(),
+    ),
   );
+
+
+
+  Future.delayed(Duration.zero, () async {
+    await initService();
+  });
 }
 
 Future<void> requestPermissions() async {
