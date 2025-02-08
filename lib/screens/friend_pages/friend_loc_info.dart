@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:guardians_app/config/base_config.dart';
-import 'package:guardians_app/utils/asset_suppliers/location_page_assets.dart';
 import 'package:guardians_app/utils/global_variable.dart';
 import 'package:http/http.dart' as http;
 import '../../services/cache_service.dart';
@@ -182,6 +181,114 @@ class _FriendLocationTrackingPageState
     }
   }
 
+  void sendPoke(int senderId, int receiverId) async {
+    final url = Uri.parse("${DevConfig().sosReportingServiceBaseUrl}api/poke/$receiverId");
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"sender_poker_id": senderId}),
+      );
+
+      if (response.statusCode == 200) {
+        print("Success: ${response.body}");
+      } else {
+        print("Error ${response.statusCode}: ${response.body}");
+      }
+    } catch (e) {
+      print("Network Error: $e");
+    }
+  }
+
+  void sendPokeAndWaitForStatus(int senderId, int receiverId, int index, List friends) async {
+    final pokeUrl = Uri.parse("${DevConfig().sosReportingServiceBaseUrl}/api/poke/$receiverId");
+    final statusUrl = Uri.parse("${DevConfig().sosReportingServiceBaseUrl}/api/poke/status/$receiverId");
+
+    print(pokeUrl);
+
+    try {
+      // Step 1: Send Poke Request
+      final pokeResponse = await http.post(
+        pokeUrl,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"sender_poker_id": senderId}),
+      );
+
+      print("Status code for Poke : ${pokeResponse.statusCode}");
+
+      if (pokeResponse.statusCode == 200) {
+        _showStyledSnackBar(context, "Poke sent successfully", Colors.green);
+
+        int elapsedTime = 0;
+        Timer.periodic(Duration(seconds: 1), (Timer timer) async {
+          if (elapsedTime >= 10) {
+            timer.cancel();
+            _showStyledSnackBar(context, "${friends[index]['first_name']} not accessible", Colors.orange);
+            return;
+          }
+
+          try {
+            // Step 2: Check Poke Status
+            final statusResponse = await http.post(
+              statusUrl,
+              headers: {"Content-Type": "application/json"},
+              body: jsonEncode({"sender_poker_id": senderId}),
+            );
+
+            if (statusResponse.statusCode == 200) {
+              var data = jsonDecode(statusResponse.body);
+              print(data['acknowledgement_status']);
+
+              if (data['acknowledgement_status'] == true) {
+                _showStyledSnackBar(context, "${friends[index]['first_name']} is Accessible", Colors.green);
+                timer.cancel();
+              }
+            } else {
+              _showStyledSnackBar(context, "Error fetching status: ${statusResponse.statusCode}", Colors.orange);
+            }
+          } catch (e) {
+            _showStyledSnackBar(context, "Network error while fetching status.", Colors.red);
+          }
+
+          elapsedTime++;
+        });
+      } else {
+        _showStyledSnackBar(context, "Failed to send poke: ${pokeResponse.statusCode}", Colors.red);
+      }
+    } catch (e) {
+      _showStyledSnackBar(context, "Network error while sending poke.", Colors.red);
+    }
+  }
+
+// 🛠️ Styled SnackBar Function
+  void _showStyledSnackBar(BuildContext context, String message, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,  // Makes the snackbar float above UI
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),  // Rounded borders
+        ),
+        margin: EdgeInsets.symmetric(horizontal: 20, vertical: 10), // Better positioning
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+
+
+
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -211,6 +318,10 @@ class _FriendLocationTrackingPageState
                 return InkWell(
                   onTap: () {
                     _focusOnFriend(index);
+                  },
+                  onDoubleTap: (){
+                    sendPokeAndWaitForStatus(int.parse(userData["userID"]), friends[index]["userID"],index, friends);
+                    _showStyledSnackBar(context, "Poke Initiated", Colors.green);
                   },
                   child: AnimatedContainer(
                     duration: Duration(milliseconds: 300), // The duration of the animation
@@ -268,7 +379,18 @@ class _FriendLocationTrackingPageState
                             ],
                           ),
                         ),
-                        // If traveling, show an animated icon, else nothing
+
+                        Container(
+                          height: 40,
+                          width: 40,
+                          padding: EdgeInsets.all(5),
+                          decoration: BoxDecoration(
+                            color: AppColors.deepBlue,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Image(image: AssetImage('assets/images/poking_icon.png')),
+                        ),
+
                         travel_mode
                             ? Container(
                           height: 40,

@@ -7,12 +7,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:guardians_app/config/base_config.dart';
-import 'package:guardians_app/screens/button_configuration.dart';
 import 'package:guardians_app/screens/notification_screen.dart';
-import 'package:guardians_app/utils/global_variable.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-
 import '../services/cache_service.dart';
 import '../services/encryption.dart';
 import '../services/sms_service.dart';
@@ -82,6 +79,33 @@ class _HomeScreenState extends State<HomeScreen>
         setState(() {
 
         });
+
+      } else {
+        print("Request failed with status: ${response.statusCode}");
+      }
+    } catch (e) {
+      print("Error sending request: $e");
+    }
+  }
+
+  void updateFequently() {
+    _timer = Timer.periodic(Duration(seconds: 2), (Timer timer) {
+      updatePokeAcknowledgement();
+    });
+  }
+
+
+
+  Future<void> updatePokeAcknowledgement() async {
+    final url = Uri.parse("${DevConfig().sosReportingServiceBaseUrl}/api/poke/acknowledge/${userData['userID']}");
+
+    final headers = {"Content-Type": "application/json"};
+
+    try {
+      final response = await http.post(url, headers: headers);
+
+      if (response.statusCode == 200) {
+        // print("Request successful: ${response.body}");
 
       } else {
         print("Request failed with status: ${response.statusCode}");
@@ -221,6 +245,7 @@ class _HomeScreenState extends State<HomeScreen>
     getUserData();
     _getCurrentLocation();
     loadPreferences();
+    updateFequently();
     _animationController = AnimationController(
       vsync: this,
       duration: Duration(seconds: 5),
