@@ -286,10 +286,6 @@ class _AddCloseFriendsHomePageState extends State<AddCloseFriendsHomePage> {
                         ? cleanPhoneNumber(contact.phones.first.number)
                         : '';
 
-                    if(cleanedPhoneNumber=="8329654110"){
-                      print(cleanedPhoneNumber);
-                    }
-
 
                     if (isPhoneInList(_availableFriends, cleanedPhoneNumber)) {
                       return InkWell(

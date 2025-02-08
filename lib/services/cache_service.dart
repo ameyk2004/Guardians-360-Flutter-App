@@ -37,6 +37,14 @@ class CacheService {
     print('public_key saved.');
   }
 
+  Future<void> saveFriendsData(String friendsData) async {
+    print('--- saving Friends Data in Cache ---');
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    print('Saving Friends Data : $friendsData');
+    await prefs.setString("friends_data", friendsData);
+    print('friends_data saved.');
+  }
+
   // Save user details to SharedPreferences as a JSON string
   Future<void> saveUserDetails(String userData) async {
     print('--- saveUserDetails ---');

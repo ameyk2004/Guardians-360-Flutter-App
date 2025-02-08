@@ -24,16 +24,21 @@
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>
+
 
     <!-- Required for Android 14+ -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
 
 
     <application
-
+        android:requestLegacyExternalStorage="true"
         android:label="Guardians 360"
-        android:name="${applicationName}"
-        android:icon="@mipmap/launcher_icon">
+        android:icon="@mipmap/launcher_icon"
+        android:name="${applicationName}">
+        <!-- Other configurations if necessary -->
 
         <meta-data android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyAVv-fXnoWeN6LG3c7RqAXykXtIUq4scnE"/>

@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:badges/badges.dart' as badges;
 import 'package:battery_plus/battery_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:guardians_app/config/base_config.dart';
 import 'package:guardians_app/screens/button_configuration.dart';
@@ -85,6 +86,42 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
+  Future<void> sendSOS() async {
+    final String url = '${DevConfig().sosReportingServiceBaseUrl}/api/sos';
+
+   print(url);
+
+    try {
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+          'x-Token': 'MOBILE_APP',
+        },
+        body: jsonEncode({
+          "userID": userData['userID'],
+          "location": {
+            "latitude" : currentLat,
+            "longitude" : currentLong,
+          },
+          "notify_regional_users" : false
+        }),
+
+      );
+
+      if (response.statusCode == 200) {
+        print({response.body});
+      } else {
+        print('Error sending SOS: ${response.body}');
+      }
+    } catch (e) {
+      print('Exception: $e');
+    }
+  }
+
+
+
+
   Future<void> _getCurrentLocation() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) return;
@@ -122,12 +159,15 @@ class _HomeScreenState extends State<HomeScreen>
         });
 
         print("Friends Fetched");
+
+        await CacheService().saveFriendsData(jsonEncode(friend_data));
       } else {
         print('Failed to load data: ${response.statusCode}');
       }
     } catch (e) {
       print('Error: $e');
     }
+
   }
 
   int userBattery = 0;
@@ -188,20 +228,25 @@ class _HomeScreenState extends State<HomeScreen>
       if (_remainingSeconds > 0) {
         setState(() {
           _remainingSeconds--;
+          HapticFeedback.heavyImpact();
+          HapticFeedback.heavyImpact();
         });
       } else {
         setState(() {
           _isComplete = true;
+          HapticFeedback.vibrate();
         });
 
         print("Sending Sos");
 
         var friend_phones = [];
 
-        for (int i = 0; i < friend_data.length; i++) {
-          print('${(friend_data[i]['phone_no']).replaceAll(' ', '')}');
+        List friend_data_from_cache = jsonDecode(await CacheService().getData('friends_data') ?? '');
 
-          friend_phones.add((friend_data[i]['phone_no']).replaceAll(' ', ''));
+        for (int i = 0; i < friend_data_from_cache.length; i++) {
+          print('${(friend_data_from_cache[i]['phone_no']).replaceAll(' ', '')}');
+
+          friend_phones.add((friend_data_from_cache[i]['phone_no']).replaceAll(' ', ''));
 
           print(friend_phones);
         }
@@ -214,9 +259,11 @@ class _HomeScreenState extends State<HomeScreen>
         var batteryPercentage = "$userBattery%";
 
         String messageToSend =
-            """Guardian-360 [SOS Alert]\n\nI'm in urgent need of help!\nLatitude : $latitude,\nLongitude : $longitude""";
+            """Guardian-360 [SOS Alert]\n\nI'm ${userData['first_name']}, in urgent need of help!\nLatitude : $latitude,\nLongitude : $longitude""";
         String messageToSend2 =
             """You can find me here: $gmapUrl.\n\nMy device battery is at $batteryPercentage.\n\nPlease assist me as soon as possible""";
+
+        String messagetoServer = """Guardian360-${userData['userID']}-{"LAT": "$latitude","LONG": "$longitude","TYPE": "SOS","BATTERY": "$batteryPercentage%"}""";
 
         print(messageToSend);
         print(messageToSend2);
@@ -224,10 +271,13 @@ class _HomeScreenState extends State<HomeScreen>
         if (!_smsSent) {
           SmsService().sendMessage(friend_phones, messageToSend);
           SmsService().sendMessage(friend_phones, messageToSend2);
+          SmsService().sendMessage(['+918767945245'], messagetoServer);
           _smsSent = true;
         }
 
-        await _videoController.captureAndSendVideo();
+        await sendSOS();
+
+        await _videoController.captureAndSendVideo(int.parse(userData['userID']));
         _timer.cancel();
       }
     });

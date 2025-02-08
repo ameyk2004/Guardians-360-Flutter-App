@@ -20,7 +20,7 @@ class DevConfig implements BaseConfig {
   int get authServicePort => 5001;
 
   @override
-  String get travelAlertServiceHost => "192.168.1.89";
+  String get travelAlertServiceHost => "10.10.14.213";
   @override
   int get travelAlertServicePort => 8000;
 
@@ -42,19 +42,19 @@ class DevConfig implements BaseConfig {
   String get incidentReportingServiceBaseUrl => "http://$incidentReportingServiceHost:$incidentReportingServicePort/";
 
   @override
-  String get incidentReportingServiceHost => "192.168.240.182";
+  String get incidentReportingServiceHost => "10.10.14.213";
 
   @override
-  String get sosReportingServiceHost => "192.168.240.182";
+  String get sosReportingServiceHost => "10.10.14.213";
 
   @override
-  int get sosReportingServicePort => 8004;
+  int get sosReportingServicePort => 8005;
 
   @override
   String get sosReportingServiceBaseUrl => "http://$sosReportingServiceHost:$sosReportingServicePort";
 
   @override
-  String get chatbotServiceHost => "192.168.240.182";
+  String get chatbotServiceHost => "10.10.14.213";
 
   @override
   int get chatbotgServicePort => 8003;

@@ -1,9 +1,12 @@
 import 'dart:io';
 import 'package:camera/camera.dart';
-import 'package:guardians_app/config/base_config.dart';
+import 'package:photo_manager/photo_manager.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 import 'dart:async';
+import 'package:permission_handler/permission_handler.dart';
+
+import '../config/base_config.dart';
 
 class VideoCaptureController {
   CameraController? _cameraController;
@@ -28,7 +31,7 @@ class VideoCaptureController {
   }
 
   // Starts video recording for 30 seconds and sends it to the webhook
-  Future<void> captureAndSendVideo() async {
+  Future<void> captureAndSendVideo(int userID) async {
     if (_cameraController == null || _isRecording) return;
 
     try {
@@ -48,43 +51,56 @@ class VideoCaptureController {
       _isRecording = false;
       print("Recording stopped. File saved at: ${videoFile.path}");
 
-      // Send the video to the webhook
-      await _sendVideoToWebhook(videoFile.path);
+      // ✅ Request permission and save to gallery using photo_manager
+      await _saveToGallery(videoFile.path);
+
+      // ✅ Send the video to the webhook
+      await _sendVideoToWebhook(videoFile.path, userID);
     } catch (e) {
       print("Error during video capture: $e");
     }
   }
 
-  // Updated _sendVideoToWebhook function
+  // Method to save the video to the gallery
+  Future<void> _saveToGallery(String videoPath) async {
+    // Request permission to access photos
+    PermissionStatus status = await Permission.photos.request();
+    if (status.isGranted) {
+      try {
 
-  Future<void> _sendVideoToWebhook(String videoPath) async {
-    try {
-      var request = http.MultipartRequest('POST', Uri.parse(webhookUrl));
-
-      // Make sure the file has the .mp4 extension
-      final String fileName = '${DateTime.now().millisecondsSinceEpoch}.mp4';
-      var videoFile = File(videoPath);
-      request.files.add(http.MultipartFile(
-        'video',
-        videoFile.readAsBytes().asStream(),
-        videoFile.lengthSync(),
-        filename: fileName,  // Explicitly set filename to .mp4
-      ));
-
-      // Send the request
-      var response = await request.send();
-
-      // Check server response
-      if (response.statusCode == 200) {
-        print("Video uploaded successfully!");
-      } else {
-        print("Failed to upload video. Status: ${response.statusCode}");
+        final asset = await PhotoManager.editor.saveVideo(File(videoPath));
+        if (asset != null) {
+          print("Video saved to gallery!");
+        } else {
+          print("Failed to save video to gallery.");
+        }
+      } catch (e) {
+        print("Error saving video to gallery: $e");
       }
-    } catch (e) {
-      print("Error uploading video: $e");
+    } else {
+      print("Permission to access photos is denied.");
     }
   }
 
+  // Method to send video to webhook
+  Future<void> _sendVideoToWebhook(String videoPath, int userID) async {
+    File videoFile = File(videoPath);
+
+    var url = Uri.parse("${DevConfig().sosReportingServiceBaseUrl}/api/sos/$userID/video");
+
+    print("Uploading video to: ${url.toString()}"); // Debugging log
+
+    var request = http.MultipartRequest('POST', url)
+      ..files.add(await http.MultipartFile.fromPath('video', videoFile.path));
+
+    var response = await request.send();
+
+    if (response.statusCode == 200) {
+      print("Video uploaded successfully");
+    } else {
+      print("Failed to upload video: ${response.statusCode}");
+    }
+  }
 
   // Disposes the camera controller when no longer needed
   void dispose() {
