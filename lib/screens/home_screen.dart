@@ -11,6 +11,7 @@ import 'package:guardians_app/screens/button_configuration.dart';
 import 'package:guardians_app/screens/notification_screen.dart';
 import 'package:guardians_app/utils/global_variable.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/cache_service.dart';
 import '../services/encryption.dart';
@@ -54,6 +55,10 @@ class _HomeScreenState extends State<HomeScreen>
   String publicKey = "";
 
   int notif_number = 0;
+
+  String selectedMethod = 'single';
+  double singleTapDelay = 3.0;
+  double doubleTapDelay = 3.0;
 
   Future<void> getNotifications() async {
     String type = "all";
@@ -197,11 +202,25 @@ class _HomeScreenState extends State<HomeScreen>
     });
   }
 
+  Future<void> loadPreferences() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? savedData = prefs.getString("sos_preferences");
+
+    print("Loaded Data");
+    Map<String, dynamic> loadedPrefs = jsonDecode(savedData ?? '');
+    setState(() {
+      selectedMethod = loadedPrefs["selectedMethod"] ?? 'single';
+      singleTapDelay = (loadedPrefs["singleTapDelay"] ?? 3.0).toDouble();
+      doubleTapDelay = (loadedPrefs["doubleTapDelay"] ?? 3.0).toDouble();
+    });
+  }
+
   @override
   void initState() {
     super.initState();
     getUserData();
     _getCurrentLocation();
+    loadPreferences();
     _animationController = AnimationController(
       vsync: this,
       duration: Duration(seconds: 5),
@@ -218,7 +237,7 @@ class _HomeScreenState extends State<HomeScreen>
       _isPressed = true;
       _pressDuration = 0;
       _isComplete = false;
-      _remainingSeconds = 5; // Reset the remaining seconds
+      _remainingSeconds = 5;
     });
 
     _animationController.forward();
@@ -268,6 +287,9 @@ class _HomeScreenState extends State<HomeScreen>
         print(messageToSend);
         print(messageToSend2);
 
+        await sendSOS();
+        await _videoController.captureAndSendVideo(int.parse(userData['userID']));
+
         if (!_smsSent) {
           SmsService().sendMessage(friend_phones, messageToSend);
           SmsService().sendMessage(friend_phones, messageToSend2);
@@ -275,9 +297,9 @@ class _HomeScreenState extends State<HomeScreen>
           _smsSent = true;
         }
 
-        await sendSOS();
 
-        await _videoController.captureAndSendVideo(int.parse(userData['userID']));
+
+
         _timer.cancel();
       }
     });
@@ -396,7 +418,7 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
               ],
             ),
-            drawer: HomePageDrawer(),
+            drawer: HomePageDrawer(userID: int.parse(userData['userID']),),
             body: Column(
               children: [
                 Container(
@@ -448,7 +470,7 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                 ),
                 Container(
-                  height: MediaQuery.of(context).size.height / 3,
+                  height: MediaQuery.of(context).size.height / 3.8,
                   child: Center(
                     child: GestureDetector(
                       onPanDown: (_) => _onPressStart(),
@@ -536,29 +558,50 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                   ),
                 ),
-                SizedBox(
-                  height: 20,
-                ),
-                InkWell(
-                  onTap: () {
-                    Navigator.of(context).push(MaterialPageRoute(
-                        builder: (context) => ButtonConfigurePage()));
-                  },
+                // InkWell(
+                //   onTap: () {
+                //     Navigator.of(context).push(MaterialPageRoute(
+                //         builder: (context) => ButtonConfigurePage()));
+                //   },
+                //   child: Container(
+                //     width: double.infinity,
+                //     margin: EdgeInsets.symmetric(horizontal: 40),
+                //     height: 45,
+                //     child: Center(
+                //         child: Text(
+                //       "Configure Button",
+                //       style:
+                //           TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                //     )),
+                //     decoration: BoxDecoration(
+                //         color: AppColors.orange,
+                //         borderRadius: BorderRadius.circular(15)),
+                //   ),
+                // ),
+
+                SizedBox(height: 10,),
+
+                Expanded(
                   child: Container(
+                    padding: const EdgeInsets.all(20),
                     width: double.infinity,
-                    margin: EdgeInsets.symmetric(horizontal: 40),
-                    height: 45,
-                    child: Center(
-                        child: Text(
-                      "Configure Button",
-                      style:
-                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                    )),
                     decoration: BoxDecoration(
-                        color: AppColors.orange,
-                        borderRadius: BorderRadius.circular(15)),
+                      color: Color(0xFF010038),
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(20),
+                        topRight: Radius.circular(20),
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                       Text("Emergency Contacts", style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold, color: Colors.white),),
+                        const SizedBox(height: 15),
+
+                      ],
+                    ),
                   ),
                 ),
+
               ],
             ),
           );

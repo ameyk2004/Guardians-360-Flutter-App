@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:guardians_app/auth_wrapper.dart';
+import 'package:guardians_app/screens/sos_preference_page.dart';
 import 'package:guardians_app/utils/asset_suppliers/contacts_page_assets.dart';
 
 import '../../services/cache_service.dart';
 import '../colors.dart';
 
 class HomePageDrawer extends StatelessWidget {
+  final int userID;
   const HomePageDrawer({
-    super.key,
+    super.key, required this.userID,
   });
 
   @override
@@ -32,6 +34,49 @@ class HomePageDrawer extends StatelessWidget {
 
 
               ),
+
+              Divider(),
+
+              Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: ElevatedButton(
+
+                  onPressed:() async {
+
+                    Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (context)=>SosPreferencesPage(userID: userID)));
+
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.lightBlue, // Background color
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15), // Rounded corners
+                    ),
+                    padding: EdgeInsets.symmetric(vertical: 12), // Padding inside button
+                  ),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: Center(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.settings, size: 25, color: Colors.black87,),
+                          SizedBox(width: 10,),
+                          Text(
+                            "SOS Settings",
+                            style: TextStyle(
+                              color: Colors.black,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+
               Spacer(),
 
               Padding(

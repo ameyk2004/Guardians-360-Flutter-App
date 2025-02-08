@@ -44,7 +44,7 @@ class InternetConnectivityInApp {
             print("Disconnected since: $disconnectedSince (${DateTime.now().difference(disconnectedSince!).inSeconds} seconds ago)");
           }
 
-          if (DateTime.now().difference(disconnectedSince!).inSeconds >= 5) {
+          if (DateTime.now().difference(disconnectedSince!).inMinutes >= 5) {
             showSnackbar(context, "Internet has been disconnected for 5 minutes", Colors.orange);
 
             bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
